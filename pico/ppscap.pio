@@ -1,0 +1,30 @@
+; ppscap.pio — free-running down-counter with PPS rising-edge snapshot.
+;
+; X decrements once per 2 clk_sys cycles in BOTH phases (high-wait and
+; low-wait), so the count rate is constant; the capture path skips one decrement per pulse — a 10 ppb rate bias
+; compensated host-side by adding seq to the extended count (see pps_pico.c,
+; review 2026-08-30 §3.3). Resolution = 2 cycles = 10 ns @ 200 MHz (sigma
+; ~2.9 ns). A 1-cycle variant is a later optimization (see repo notes).
+;
+; Snapshots (autopush, 32 bits) arrive on:
+;   - PPS rising edge (pin high in the hi-poll loop), and
+;   - X underflow in the hi-poll loop (~ every 42.95 s @ 10 ns/step): a
+;     "wrap marker" the host uses to extend to 64 bits. The host separates
+;     the two by cadence (1.000 s vs 42.95 s) — trivially unambiguous.
+;
+; JMP_PIN must be configured to the PPS GPIO via sm_config_set_jmp_pin().
+
+.program ppscap
+
+    mov x, ~null            ; start at 0xFFFFFFFF
+.wrap_target
+hi_poll:
+    jmp pin, capture        ; 1: pin high -> snapshot
+    jmp x--, hi_poll        ; 2: count; on underflow falls through = wrap marker
+capture:
+    in x, 32                ; autopush snapshot (1 cyc; FIFO never fills at 1 Hz)
+lo_poll:                    ; keep counting at the same cadence while pin high
+    jmp x--, lo_chk         ; 1: count (falls through on underflow, same target)
+lo_chk:
+    jmp pin, lo_poll        ; 2: still high -> keep waiting/counting
+.wrap                       ; pin low -> back to hi_poll
