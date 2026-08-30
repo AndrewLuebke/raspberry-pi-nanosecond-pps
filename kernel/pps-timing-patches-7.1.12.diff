@@ -1,0 +1,208 @@
+diff --git a/drivers/pinctrl/bcm/pinctrl-bcm2835.c b/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+index e1ea7b0b5..a36d67e84 100644
+--- a/drivers/pinctrl/bcm/pinctrl-bcm2835.c
++++ b/drivers/pinctrl/bcm/pinctrl-bcm2835.c
+@@ -422,8 +422,22 @@ static const struct gpio_chip bcm2711_gpio_chip = {
+ 	.add_pin_ranges = bcm2835_add_pin_ranges_fallback,
+ };
+ 
++/*
++ * PPS timestamp experiment (GPIO18 + GPIO27 loopback): earliest-possible
++ * software stamp, taken at chained-handler entry and published only when
++ * GPIO18/27 has an event latched in GPEDS bank 0.  Consumed by pps-gpio.
++ * Published only from the FIRST GPEDS read: an edge that appears during the
++ * lost-edge retry arrived after handler entry, so its consumer correctly
++ * falls back to the leaf timestamp (seq unchanged for it).
++ */
++struct timespec64 bcm2835_pps_entry_ts;
++EXPORT_SYMBOL_GPL(bcm2835_pps_entry_ts);
++u64 bcm2835_pps_entry_seq;
++EXPORT_SYMBOL_GPL(bcm2835_pps_entry_seq);
++
+ static void bcm2835_gpio_irq_handle_bank(struct bcm2835_pinctrl *pc,
+-					 unsigned int bank, u32 mask)
++					 unsigned int bank, u32 mask,
++					 const struct timespec64 *entry_ts)
+ {
+ 	unsigned long events;
+ 	unsigned offset;
+@@ -431,6 +445,10 @@ static void bcm2835_gpio_irq_handle_bank(struct bcm2835_pinctrl *pc,
+ 	u32 levs, levs2;
+ 
+ 	events = bcm2835_gpio_rd(pc, GPEDS0 + bank * 4);
++	if (bank == 0 && (events & (BIT(18) | BIT(27)))) {
++		bcm2835_pps_entry_ts = *entry_ts;
++		bcm2835_pps_entry_seq++;
++	}
+ 	levs = bcm2835_gpio_rd(pc, GPLEV0 + bank * 4);
+ 	events &= mask;
+ 	events &= pc->enabled_irq_map[bank];
+@@ -462,9 +480,13 @@ static void bcm2835_gpio_irq_handler(struct irq_desc *desc)
+ 	struct bcm2835_pinctrl *pc = gpiochip_get_data(chip);
+ 	struct irq_chip *host_chip = irq_desc_get_chip(desc);
+ 	int irq = irq_desc_get_irq(desc);
++	struct timespec64 entry_ts;
+ 	int group = 0;
+ 	int i;
+ 
++	/* PPS experiment: stamp before GIC ack and GPEDS read */
++	ktime_get_real_ts64(&entry_ts);
++
+ 	for (i = 0; i < BCM2835_NUM_IRQS; i++) {
+ 		if (chip->irq.parents[i] == irq) {
+ 			group = i;
+@@ -478,14 +500,14 @@ static void bcm2835_gpio_irq_handler(struct irq_desc *desc)
+ 
+ 	switch (group) {
+ 	case 0: /* IRQ0 covers GPIOs 0-27 */
+-		bcm2835_gpio_irq_handle_bank(pc, 0, 0x0fffffff);
++		bcm2835_gpio_irq_handle_bank(pc, 0, 0x0fffffff, &entry_ts);
+ 		break;
+ 	case 1: /* IRQ1 covers GPIOs 28-45 */
+-		bcm2835_gpio_irq_handle_bank(pc, 0, 0xf0000000);
+-		bcm2835_gpio_irq_handle_bank(pc, 1, 0x00003fff);
++		bcm2835_gpio_irq_handle_bank(pc, 0, 0xf0000000, &entry_ts);
++		bcm2835_gpio_irq_handle_bank(pc, 1, 0x00003fff, &entry_ts);
+ 		break;
+ 	case 2: /* IRQ2 covers GPIOs 46-57 */
+-		bcm2835_gpio_irq_handle_bank(pc, 1, 0x003fc000);
++		bcm2835_gpio_irq_handle_bank(pc, 1, 0x003fc000, &entry_ts);
+ 		break;
+ 	}
+ 
+@@ -1325,6 +1347,14 @@ static const struct of_device_id bcm2835_pinctrl_match[] = {
+ };
+ MODULE_DEVICE_TABLE(of, bcm2835_pinctrl_match);
+ 
++/* PPS experiment: steer the bank-0 GPIO parent IRQ (GIC SPI 113) to a quiet
++ * isolated CPU at probe. Chained parents have no /proc affinity knob; doing
++ * it here makes the 2026-08-29 steering permanent (replaces pps_steer.ko).
++ */
++static int pps_irq_cpu = 2;
++module_param(pps_irq_cpu, int, 0444);
++MODULE_PARM_DESC(pps_irq_cpu, "CPU to steer the bank-0 GPIO IRQ to (-1 = leave on boot default)");
++
+ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
+ {
+ 	struct device *dev = &pdev->dev;
+@@ -1472,6 +1502,11 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
+ 		goto out_remove;
+ 	}
+ 
++	if (pps_irq_cpu >= 0 && pps_irq_cpu < nr_cpu_ids && girq->parents[0] &&
++	    irq_set_affinity(girq->parents[0], cpumask_of(pps_irq_cpu)))
++		dev_warn(dev, "failed to steer bank0 IRQ to CPU%d\n",
++			 pps_irq_cpu);
++
+ 	dev_info(dev, "GPIO_OUT persistence: %s\n",
+ 		 str_yes_no(persist_gpio_outputs));
+ 
+diff --git a/drivers/pps/clients/pps-gpio.c b/drivers/pps/clients/pps-gpio.c
+index fc0cffe2b..fedfc4817 100644
+--- a/drivers/pps/clients/pps-gpio.c
++++ b/drivers/pps/clients/pps-gpio.c
+@@ -36,8 +36,21 @@ struct pps_gpio_device_data {
+ 	unsigned int echo_active_ms;	/* PPS echo active duration */
+ 	unsigned long echo_timeout;	/* timer timeout value in jiffies */
+ 	struct pps_event_time ts;	/* timestamp captured in hardirq */
++	u64 last_entry_seq;		/* last consumed pinctrl entry-stamp */
+ };
+ 
++/* --- GPEDS entry-stamp experiment (bcm2711 / pinctrl-bcm2835) --- */
++extern struct timespec64 bcm2835_pps_entry_ts;
++extern u64 bcm2835_pps_entry_seq;
++
++static bool use_early;
++module_param(use_early, bool, 0644);
++MODULE_PARM_DESC(use_early, "report pinctrl entry timestamp instead of leaf-handler timestamp");
++
++/* entry->leaf delta statistics (hardirq-written, printed from irq thread) */
++static u64 stat_n, stat_sum, stat_sumsq, stat_max, stat_missing, stat_neg, stat_stale;
++static u64 stat_min = ~0ULL;
++
+ /*
+  * Report the PPS event
+  */
+@@ -49,8 +62,48 @@ struct pps_gpio_device_data {
+ static irqreturn_t pps_gpio_irq_hardirq(int irq, void *data)
+ {
+ 	struct pps_gpio_device_data *info = data;
+-
+-	pps_get_ts(&info->ts);
++	u64 seq = bcm2835_pps_entry_seq;
++	struct pps_event_time leaf_ts;
++
++	pps_get_ts(&leaf_ts);
++
++	if (seq != info->last_entry_seq) {
++		/* fresh entry stamp published by pinctrl for this edge */
++		s64 d = timespec64_to_ns(&leaf_ts.ts_real) -
++			timespec64_to_ns(&bcm2835_pps_entry_ts);
++
++		info->last_entry_seq = seq;
++		/*
++		 * Adopt the entry stamp only when it plausibly belongs to THIS
++		 * edge. A stamp published by another pin's earlier event (a
++		 * second pps-gpio instance whose own edges don't publish, seen
++		 * 2026-08-29) or any other staleness shows up as a large or
++		 * negative delta; those pulses use the leaf timestamp instead.
++		 */
++		if (d >= 0 && d < 50 * NSEC_PER_USEC) {
++			stat_n++;
++			stat_sum += d;
++			stat_sumsq += (u64)d * (u64)d;
++			if ((u64)d < stat_min)
++				stat_min = d;
++			if ((u64)d > stat_max)
++				stat_max = d;
++			/* NB experiment assumes !CONFIG_NTP_PPS (no ts_raw) */
++			if (use_early)
++				info->ts.ts_real = bcm2835_pps_entry_ts;
++			else
++				info->ts = leaf_ts;
++		} else {
++			if (d < 0)
++				stat_neg++;
++			else
++				stat_stale++;
++			info->ts = leaf_ts;
++		}
++	} else {
++		stat_missing++;
++		info->ts = leaf_ts;
++	}
+ 
+ 	return IRQ_WAKE_THREAD;
+ }
+@@ -76,6 +129,11 @@ static irqreturn_t pps_gpio_irq_thread(int irq, void *data)
+ 	else
+ 		dev_warn_ratelimited(&info->pps->dev, "IRQ did not trigger any PPS event\n");
+ 
++	if (stat_n && stat_n % 600 == 0)
++		pr_info("entry->leaf delta: n=%llu mean=%llu min=%llu max=%llu sumsq=%llu missing=%llu neg=%llu stale=%llu use_early=%d\n",
++			stat_n, stat_sum / stat_n, stat_min, stat_max,
++			stat_sumsq, stat_missing, stat_neg, stat_stale, use_early);
++
+ 	return IRQ_HANDLED;
+ }
+ 
+diff --git a/include/linux/pps_kernel.h b/include/linux/pps_kernel.h
+index aab0aebb5..aabe41204 100644
+--- a/include/linux/pps_kernel.h
++++ b/include/linux/pps_kernel.h
+@@ -99,12 +99,14 @@ static inline void timespec_to_pps_ktime(struct pps_ktime *kt,
+ 
+ static inline void pps_get_ts(struct pps_event_time *ts)
+ {
++#ifdef CONFIG_NTP_PPS
+ 	struct system_time_snapshot snap;
+ 
+ 	ktime_get_snapshot(&snap);
+ 	ts->ts_real = ktime_to_timespec64(snap.real);
+-#ifdef CONFIG_NTP_PPS
+ 	ts->ts_raw = ktime_to_timespec64(snap.raw);
++#else
++	ktime_get_real_ts64(&ts->ts_real);
+ #endif
+ }
+ 

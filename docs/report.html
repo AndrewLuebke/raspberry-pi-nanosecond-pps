@@ -1,0 +1,236 @@
+<title>The 13 ns Pi 4</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --ground:#F6F8F6; --panel:#FFFFFF; --ink:#1B2420; --muted:#5C6B63;
+  --accent:#0E7A5F; --accent-ink:#0A5C48; --amber:#A66A12; --rule:#DDE5E0;
+  --code-bg:#EFF3F0; --bad:#9C3A2E;
+}
+:root:not([data-theme="light"]){}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1512; --panel:#161D19; --ink:#DCE5DF; --muted:#8FA097;
+    --accent:#3FBF97; --accent-ink:#5ED2AC; --amber:#D79A3C; --rule:#27302B;
+    --code-bg:#1D2621; --bad:#D06A5B;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1512; --panel:#161D19; --ink:#DCE5DF; --muted:#8FA097;
+  --accent:#3FBF97; --accent-ink:#5ED2AC; --amber:#D79A3C; --rule:#27302B;
+  --code-bg:#1D2621; --bad:#D06A5B;
+}
+body{background:var(--ground); color:var(--ink);
+  font:17px/1.65 "Source Serif 4", Georgia, serif; margin:0;}
+main{max-width:46rem; margin:0 auto; padding:2.5rem 1.25rem 5rem;}
+h1,h2,h3{font-family:Archivo,"Helvetica Neue",Arial,sans-serif; line-height:1.15; text-wrap:balance;}
+h1{font-size:2.6rem; font-weight:800; letter-spacing:-.02em; margin:.4rem 0 .3rem;}
+h2{font-size:1.45rem; font-weight:700; margin:2.8rem 0 .7rem; padding-top:1.2rem; border-top:1px solid var(--rule);}
+h3{font-size:1.05rem; font-weight:700; margin:1.6rem 0 .4rem;}
+.eyebrow{font-family:Archivo,sans-serif; font-weight:600; font-size:.78rem;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--accent);}
+.sub{font-size:1.1rem; color:var(--muted); margin:0 0 1.6rem; font-style:italic;}
+p{margin:.7rem 0;}
+strong{font-weight:600;}
+a{color:var(--accent-ink);}
+code, .mono{font-family:"JetBrains Mono", ui-monospace, monospace; font-size:.86em;
+  background:var(--code-bg); padding:.08em .35em; border-radius:3px;}
+pre{background:var(--code-bg); padding: .9rem 1rem; border-radius:6px;
+  overflow-x:auto; font-size:.82rem; line-height:1.5;}
+pre code{background:none; padding:0;}
+.tablewrap{overflow-x:auto; margin:1rem 0;}
+table{border-collapse:collapse; width:100%; font-size:.88rem;
+  font-family:Archivo,sans-serif; font-variant-numeric:tabular-nums;}
+th{font-size:.72rem; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--muted); text-align:left; font-weight:600;}
+th,td{padding:.45rem .7rem .45rem 0; border-bottom:1px solid var(--rule); vertical-align:top;}
+td.num, th.num{text-align:right; font-family:"JetBrains Mono",monospace; font-size:.84rem;}
+tr.hero td{color:var(--accent-ink); font-weight:600;}
+.big{display:flex; gap:2rem; flex-wrap:wrap; margin:1.6rem 0; padding:1.3rem 1.4rem;
+  background:var(--panel); border:1px solid var(--rule); border-radius:10px;}
+.big div{flex:1; min-width:8.5rem;}
+.big .n{font-family:"JetBrains Mono",monospace; font-weight:600; font-size:2rem;
+  color:var(--accent-ink); display:block; line-height:1.1;}
+.big .l{font-size:.78rem; font-family:Archivo,sans-serif; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--muted);}
+.bar{display:flex; height:26px; border-radius:5px; overflow:hidden; margin:.4rem 0 .2rem;
+  font-family:Archivo,sans-serif; font-size:.7rem; color:#fff;}
+.bar span{display:flex; align-items:center; justify-content:center; overflow:hidden; white-space:nowrap;}
+.legend{font-size:.8rem; color:var(--muted); font-family:Archivo,sans-serif; margin-bottom:1rem;}
+.note{border-left:3px solid var(--amber); padding:.15rem 0 .15rem 1rem; margin:1.1rem 0;
+  color:var(--muted); font-size:.94rem;}
+.verdict{border-left:3px solid var(--accent); padding:.15rem 0 .15rem 1rem; margin:1.1rem 0;}
+ol,ul{padding-left:1.3rem;}
+li{margin:.35rem 0;}
+.small{font-size:.85rem; color:var(--muted);}
+</style>
+<main>
+<p class="eyebrow">Research program &amp; live results · ntp-server (.17) · 2026-08-29</p>
+<h1>The 13 ns Pi 4</h1>
+<p class="sub">How one evening took a Raspberry Pi 4 stratum-1 from 337 ns to 13.4 ns of per-pulse
+PPS timestamp jitter — by moving one interrupt, isolating one core, and firing a decoy
+interrupt 150 µs before every real one.</p>
+
+<div class="big">
+  <div><span class="n">13.4 ns</span><span class="l">per-pulse σ (was 337)</span></div>
+  <div><span class="n">2 ns</span><span class="l">chrony RMS offset</span></div>
+  <div><span class="n">96 ns</span><span class="l">worst pulse of 932</span></div>
+  <div><span class="n">25×</span><span class="l">in one evening</span></div>
+</div>
+
+<h2>1 · The three questions, answered</h2>
+<p><strong>Can the GPIO IRQ be moved off its default core?</strong> Yes — proven live three
+ways. July's "dead end" was a userspace-visibility artifact: chained parent IRQs are allocated
+after <code>init_irq_proc()</code>'s one-shot sweep and never pass <code>request_irq()</code>,
+so no <code>/proc/irq/N</code> directory can ever exist for them — but underneath, the GPIO
+bank-0 parent (GIC SPI 113, virq 23) is an ordinary GICv2 SPI. A one-byte
+<code>GICD_ITARGETSR</code> poke retargets it (verified with a 5-second live test), a 40-line
+GPL module calling <code>irq_set_affinity()</code> does it properly (deployed), and one line in
+the pinctrl probe will do it permanently at the next kernel build. The <code>irqaffinity=</code>
+boot param can <em>not</em> do it: the boot CPU is force-added to the mask and GICv2 picks the
+lowest CPU — always CPU0.</p>
+<p><strong>What can Linux still do, short of external hardware?</strong> Far more than the
+July verdict ("on-Pi software route EXHAUSTED") allowed. Steering to an <em>isolated</em> core
+erased the multi-microsecond tails; a self-injected warm-up interrupt erased the remaining
+core scatter. Together: 25×.</p>
+<p><strong>Where is the silicon limit?</strong> σ ≈ 10–20 ns — GPIO synchronizer (~1 ns), GIC-400
+prioritization (2–12 ns), A72 exception entry (3–10 ns), and the 54 MHz counter's 18.5 ns
+quantization (σ 5.3 ns). Tonight's 13.4 ns is <em>at</em> that floor. The interrupt path is no
+longer this box's bottleneck.</p>
+
+<h2>2 · Where the 337 ns actually lived</h2>
+<div class="bar">
+  <span style="background:var(--bad); flex:322;">cache-cold Linux delivery path ≈ 320 ns</span>
+  <span style="background:var(--accent); flex:15; min-width:3.2rem;">silicon</span>
+</div>
+<p class="legend">The old σ 337 ns budget: almost none of it was hardware.</p>
+<p>Three independent research passes (kernel source, ARM GIC-400 TRM + BCM2711 datasheet +
+published measurements, and bypass-technique prior art) converged on one mechanism: at one
+pulse per second, the interrupt delivery path — vectors, <code>gic_handle_irq</code>, the
+IAR read, the irq-domain walk, the pinctrl handler, the clock read — goes <strong>cache-cold
+between every pulse</strong>. Each pulse paid ~10–30 DRAM refills and branch mispredicts
+whose individual timing varies (~130–156 ns per random LPDDR4 read, refresh collisions
+shaping the tail). That explains the signature finding of the whole program: the jitter was
+<em>load-invariant</em>, because even a quiet second is enough to randomize the caches.</p>
+<p>The clinching evidence: a CoreSight-traced GICv2/ARMv8 study measured the full hardware
+delivery pipeline at 232 ns latency with <em>a few ns</em> of spread when caches are hot —
+and 1.5–4.4 µs when cold. Cache state is a ~10× lever on identical silicon. The best prior
+software figure on any Pi (~54 ns, on a Pi 5) required exactly what we built tonight: an
+isolated, IRQ-pinned core.</p>
+
+<h2>3 · The evening's measurements</h2>
+<div class="tablewrap"><table>
+<tr><th>configuration (945-pulse windows)</th><th class="num">σ</th><th class="num">MAD†</th><th class="num">p95</th><th class="num">max</th><th class="num">&gt;500 ns</th></tr>
+<tr><td>steered to CPU2 — busy core, no isolation</td><td class="num">680</td><td class="num">295</td><td class="num">922</td><td class="num">10,468</td><td class="num">12.4%</td></tr>
+<tr><td>CPU0 baseline (old boot)</td><td class="num">313</td><td class="num">268</td><td class="num">582</td><td class="num">1,920</td><td class="num">7.3%</td></tr>
+<tr><td>CPU0 control (isolcpus boot, same day)</td><td class="num">260</td><td class="num">123</td><td class="num">368</td><td class="num">3,464</td><td class="num">1.5%</td></tr>
+<tr><td>steered to CPU2 + <strong>isolcpus=2,3</strong></td><td class="num">130</td><td class="num">148</td><td class="num">208</td><td class="num">561</td><td class="num">0.3%</td></tr>
+<tr class="hero"><td>+ pre-warm interrupt (window C)</td><td class="num">13.4</td><td class="num">11.1</td><td class="num">23</td><td class="num">96</td><td class="num">0%</td></tr>
+</table></div>
+<p class="small">† scaled MAD (1.4826×), all values ns. Every window: zero missed pulses.</p>
+<p>What each lever bought: steering to a merely <em>different</em> busy core bought nothing
+(and hurt the tails — housekeeping kthreads hold IRQs off longer than CPU0's interrupt
+traffic). Steering to an <em>isolated</em> core halved σ and crushed the tails — the delivery
+path stays warm in the core's private L1I passively. The warm shot then covered what
+isolation can't: the A72's shared, L1D-inclusive L2 lets the other three cores back-invalidate
+the path's <em>data</em> lines between pulses, so the module re-fetches everything 150 µs
+before each pulse instead of 1 s. Result: 10× further. A bonus tell: the "constant" 3.28 µs
+entry→leaf demux delay dropped to 1.80 µs on the isolated core — it was half cache misses
+all along.</p>
+<p>Servo-level, over the same hours: chrony Std Dev 216 ns (Wed) → ~140 (entry-stamp kernel)
+→ 43 (steer+isolate) → <strong>6 ns</strong>; RMS offset <strong>2 ns</strong>, skew 0.000 ppm.</p>
+
+<h2>4 · The warm shot</h2>
+<p><code>pps_prewarm.ko</code>: an <code>ABS_HARD</code> CLOCK_REALTIME hrtimer fires 150 µs
+before each wall-clock second (the PPS rides the second boundary within ~1 µs here) and
+software-pends the GPIO bank-0 SPI via
+<code>irq_set_irqchip_state(IRQCHIP_STATE_PENDING)</code>. The spurious interrupt walks the
+<em>entire</em> real delivery path on whichever CPU the bank targets — through the
+entry-stamp clock read, to an empty-GPEDS return — heating every line the real pulse needs.
+It cannot fabricate a PPS event (publishing is gated on the latched GPEDS bit), and GICv2
+semantics guarantee exactly one activation with no re-pend (IHI0048B §3.2, Table 4-11,
+Fig 4-10 — the pending latch clears on IAR, not on the line).</p>
+<p>An adversarial review (independent Grok session, two rounds) shaped the final design:
+round 1 was a justified NO-GO that caught a real re-arm arithmetic bug and refused to accept
+"a few µs of timer jitter" as folklore; round 2 accepted the rebuttal on its proposed
+downstream filter (our measured demux distribution made it unimplementable) in favor of the
+module's <strong>late-skip guard</strong> — the callback knows how late it's running and skips
+the poke within 30 µs of the boundary, making a warm/edge collision structurally impossible.
+Verdict: GO for attended A/B; production requires the watchdog (built, see §6). In service:
+worst observed timer lateness 8.1 µs against a 110 µs budget, zero late-skips, zero anomalies.</p>
+
+<h2>5 · A retraction that mattered</h2>
+<div class="note"><p><strong>The "±240 ns core wobble" never existed as measured.</strong> The
+per-pulse analysis pipeline computed fractional seconds in float64; at epoch ~1.79×10⁹ s the
+ULP is exactly 238.4 ns, and MAD estimates pinned to 1.4826 × ULP = 353.5 ns — the
+suspiciously identical "353.5" across five windows was the analyzer, not the physics.
+σ values survived nearly intact (quantization added only ~69 ns in quadrature), so the
+era-to-era story stands, but every exact-MAD claim from the float pipeline is retracted.
+All of tonight's numbers come from a rewritten integer-nanosecond pipeline. Rule earned:
+never put an epoch timestamp through float64 and keep nanoseconds.</p></div>
+
+<h2>6 · Production state (promoted 2026-08-29)</h2>
+<ul>
+<li><strong>Boot:</strong> <code>config.txt</code> → <code>kernel-gpeds.img</code> +
+<code>cmdline-gpeds-iso2.txt</code> (<code>isolcpus=2,3</code>); backup
+<code>config.txt.bak-20260829-iso2</code>.</li>
+<li><strong>Modules:</strong> <code>pps_steer.ko cpu=2</code> + <code>pps_prewarm.ko
+lead_us=150 margin_us=30</code> in <code>/lib/modules/7.1.10-v8-rt-gpeds+/updates/</code>,
+auto-loaded via <code>modules-load.d/pps-timing.conf</code>.</li>
+<li><strong>Watchdog:</strong> <code>pps-warm-watchdog.service</code> arms the warm shot only
+while chrony is PPS-locked; disarms on lock loss, skip bursts, or leaf-rate anomalies; masks
+bank 0 at the GIC if the leaf stalls while armed (deliberate PPS-down e-stop).</li>
+<li><strong>Mortality:</strong> a kernel version bump drops the <code>updates/</code> modules.
+At the rpi-7.3.y rebuild, fold the steer into the carried pinctrl patch (one
+<code>irq_set_affinity(girq-&gt;parents[0], cpumask_of(2))</code> after
+<code>devm_gpiochip_add_data</code>) and rebuild the prewarm against the new tree.</li>
+</ul>
+
+<h2>7 · The last constant, measured</h2>
+<p>With jitter solved, the remaining error was a systematic: the clock is steered so the
+<em>stamp</em> lands on the second, so it runs late by the mean delivery latency (edge at pin →
+entry-stamp instruction). A GPIO17→27 loopback (jumpered header pins 11→13, a second pps-gpio
+instance timestamping through the identical steered/warmed bank path) measured it across three
+duty cycles — 162,000 shots:</p>
+<div class="tablewrap"><table>
+<tr><th>regime</th><th class="num">median</th><th class="num">p5</th><th class="num">min</th></tr>
+<tr><td>1 Hz, ambient (1 s cold)</td><td class="num">1112</td><td class="num">1055</td><td class="num">926</td></tr>
+<tr><td>10 Hz (100 ms warm age)</td><td class="num">1074</td><td class="num">944</td><td class="num">925</td></tr>
+<tr class="hero"><td>100 Hz (10 ms warm age — the PPS's regime)</td><td class="num">944</td><td class="num">926</td><td class="num">907</td></tr>
+</table></div>
+<p>The phase-resolved 1 Hz data doubles as a cache-decay curve: the isolated core loses only
+~38 ns of warmth across a full second — the cold cost is episodic (refresh, shared-L2 traffic),
+not steady decay. Net calibration: raw hot delivery ≈ 935 ns, minus MMIO write flight
+(≤173 ns, measured) and instrumentation adjacency → <strong>delivery latency ≈ 850 ± 90 ns</strong>,
+to be applied inside the QPPS daemon when it takes over steering. With cable delay compensated
+in the receiver, qErr corrected per-pulse, and this constant applied, every known systematic in
+the chain is measured out.</p>
+
+<h2>8 · What's next</h2>
+<ol>
+<li><strong>qErr correction — LIVE the same night.</strong> Correlation proof first (r −0.167,
+slope −0.987 over 945 joined pulses: the sawtooth reaches the pin at full amplitude), then a
+shadow daemon feeding chrony a corrected <code>QPPS</code> refclock. Early soak: 3 ns filtered
+Std Dev vs raw PPS's 4–5, raw samples identical — the correct signature of removing structure,
+not scatter. Steering flip after the overnight soak, bundled with the delivery-latency constant.</li>
+<li><strong>NO_HZ_FULL — tested and closed, same night.</strong> <code>nohz_full=2,3</code> A/B
+on the IRQ core: core identical (MAD 10.4 vs 11.1), tails <em>worse</em> (four events to 963 ns
+vs zero). Both cores now measured; the question stays closed.</li>
+<li><strong>Fingerprint the last 13 ns:</strong> PMU counters (<code>L2D_CACHE_REFILL</code>,
+<code>BR_MIS_PRED</code>) snapshotted at the stamp, and a histogram check for LPDDR4 refresh
+bumps at +140/+280 ns.</li>
+<li><strong>The Pico's role, revised.</strong> No longer needed to beat the GPIO path — 13.4 ns
+already matches its realistic capture noise. It remains the path below ~10 ns and the OCXO/qErr
+fusion platform per the standing plan.</li>
+</ol>
+
+<h2>9 · Artifacts</h2>
+<p class="small">claude-node <code>~/pps-build/irq-steer/</code>: <code>pps_steer.c</code>,
+<code>pps_prewarm.c</code> (+ built .ko, CRC-verified), <code>steer-set.py</code> /
+<code>steer-test-gicd.py</code> (GICD poke tools), <code>pps_stats.py</code> (integer-ns),
+five window logs, <code>GROK-PREWARM-REVIEW-v1.md</code>, <code>promote/</code> (watchdog +
+service + promote.sh). Grok reviews also at grok-node <code>~/pps-warm-review/REVIEW{-v1,-v2}.md</code>.
+Kernel tree with correct gpeds config + Module.symvers: compiler <code>/tmp/pps73/linux-rpi-7.1.y</code>.
+Key sources: GICv2 spec IHI0048B; GIC-400 TRM DDI0471; BCM2711 peripherals datasheet;
+mlichvar/pps-gpio-poll; the CoreSight GICv2 latency study (arXiv 2009.00506); Pi 5 pps-rt
+work (~54 ns prior art).</p>
+</main>

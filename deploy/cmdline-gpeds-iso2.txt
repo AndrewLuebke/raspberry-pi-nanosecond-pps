@@ -1,0 +1,1 @@
+console=tty1 root=PARTUUID=d9647f93-02 rootfstype=ext4 fsck.repair=yes rootwait nohz_full=3 rcu_nocbs=3  mitigations=off idle=poll isolcpus=2,3 panic=10

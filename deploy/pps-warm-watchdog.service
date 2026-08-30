@@ -1,0 +1,11 @@
+[Unit]
+Description=PPS pre-warm arm gate + watchdog
+After=chrony.service systemd-modules-load.service
+
+[Service]
+ExecStart=/usr/local/bin/pps-warm-watchdog.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
