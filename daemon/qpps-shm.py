@@ -14,8 +14,8 @@ Sign convention (measured 2026-08-29, r=-0.167 slope -0.987 over 945 pulses):
 the pulse edge lands EARLY by qErr, so the true reference time of the edge is
   reference = nearest_second - qErr
 while the receive time is the raw kernel stamp. A missing qErr for a second
-(gpsd hiccup; measured coverage 99.9%) SKIPS that sample rather than emit an
-uncorrected one.
+(gpsd hiccup; measured coverage 99.9%) emits the sample UNCORRECTED
+(hardening 2026-09-01) rather than starving the refclock.
 """
 import ctypes, ctypes.util, os, socket, struct, sys, threading, time
 
@@ -140,9 +140,12 @@ def main():
         with qlock:
             qerr = qtable.get(near)
         if qerr is None:
+            # Degrade, don't starve (hardening 2026-09-01): an uncorrected
+            # sample costs 2.25 ns RMS for one second; a missing sample risks
+            # refclock reachability. DELIVERY_NS still applies.
             miss += 1
-            if miss % 60 == 1: log(f"no qErr for {near} ({miss} misses)")
-            continue
+            qerr = 0.0
+            if miss % 60 == 1: log(f"no qErr for {near} ({miss} misses, emitted uncorrected)")
         # reference = nearest second - qErr  (edge is early by qErr)
         ref_ns = near * 1_000_000_000 - int(round(qerr))
         # receive = kernel stamp minus the measured delivery latency
