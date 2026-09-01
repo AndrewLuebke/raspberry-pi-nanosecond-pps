@@ -1,0 +1,11 @@
+--- chrony-4.9-orig/reference.c	2026-09-01 10:19:06.326318214 -0700
++++ chrony-4.9/reference.c	2026-09-01 10:19:06.332000520 -0700
+@@ -770,7 +770,7 @@
+   last_sys_offset = offset - uncorrected_offset;
+ 
+   LOG_FileWrite(logfileid,
+-                "%s %-15s %2d %10.3f %10.3f %10.3e %1c %2d %10.3e %10.3e %10.3e %10.3e %10.3e",
++                "%s %-15s %2d %13.6f %13.6f %10.3e %1c %2d %10.3e %10.3e %10.3e %10.3e %10.3e",
+                 UTI_TimeToLogForm(now->tv_sec),
+                 our_ref_ip.family != IPADDR_UNSPEC ?
+                   UTI_IPToString(&our_ref_ip) : UTI_RefidToString(our_ref_id),
