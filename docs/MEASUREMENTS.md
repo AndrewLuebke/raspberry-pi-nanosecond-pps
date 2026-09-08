@@ -201,3 +201,11 @@ Circular scoring of the same run: 0.10 / 0.36 / 0.47 — the metric that hid it.
 MAX_GAP 4, skip instead of qErr=0): see the table in PI5.md; zero published > 3 ns at any gap; QPPS
 raw p99 14–17 ns in every phase vs 15 in the control; chrony residual 3.2–3.8. Result files:
 `data/pi5/results/droptest-results.txt`, `droptest3-results.txt`.
+
+## qErr predictor on the Pi 4 feeder (09-08, Pacific 13:38–14:07)
+
+Same predictor ported to `daemon/qpps-shm.py` (gpsd-fed; the test hook withholds TIM-TP values
+instead of datagrams). Published predictions, linear error: gap 1 s n=32 robust 0.12 p90 0.40
+max 0.55 ns, zero > 3 ns; gap 2 s n=18 robust 0.29 max 0.72, zero > 3 ns; the cut gate skipped
+11 predictions, among them both straddles that occurred (7.79, 7.39 ns). QPPS stayed the
+steering source at −3 ns. Result file: `data/pi4-results/droptest17-results.txt`.
