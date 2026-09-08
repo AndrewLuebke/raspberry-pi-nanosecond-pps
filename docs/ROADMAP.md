@@ -32,10 +32,11 @@
       on the Pi 4's clock (`tools/tic-pair.py`); split the posted-write flight with the
       measured 990 ns read round trip. Then set the PPS `offset` / QPPS `DELIVERY_NS`.
 - [ ] **Pi 5 enclosure + SHT35**: the day-to-day 4–8 ns chrony floor is thermal wander of
-      the OCXO in room air (SoC heat proven irrelevant: +13 °C moved nothing). Box it,
+      the OCXO in room air (a +13 °C SoC burn moved nothing, which argues against die temperature without isolating every board gradient). Box it,
       log the box temperature (`deploy/pi5/sht35.py`), publish the temperature envelope.
-- [ ] **Pi 5 hardware capture (RP1 PIO)**: the remaining raw core is dominated by the
-      54 MHz arch-timer quantum (≤ 5.3 ns RMS). Run `pico/ppscap.pio` on RP1's PIO, map
+- [ ] **Pi 5 hardware capture (RP1 PIO)**: the remaining raw core is limited by the
+      54 MHz arch-timer quantum (≤ 5.3 ns RMS) together with the receiver's qErr sawtooth of
+      similar size. Run `pico/ppscap.pio` on RP1's PIO, map
       PIO counts to system time by averaged cross-reads (both domains hang off the same
       OCXO), feed chrony via SHM. The latch would be load-immune; the readout is not
       unless the count comes out of a FIFO without a firmware round trip on the critical

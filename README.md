@@ -7,7 +7,8 @@ runs a PREEMPT_RT kernel with this repo's patches, isolated cores, and a GPIO lo
 warm edge. Both timestamp the same physical u-blox ZED-F9T pulse. On one calm night the
 raw per-pulse scatter of both was 7.4 ns robust SD; the Pi 4's historical ladder, in a
 different metric (`ppstest` sample SD over ~945-pulse windows), runs from 437 ns on a stock
-kernel to 13.4 ns with the patches, about 33×. The absolute delay of each board is a
+kernel to 13.4 ns with the patches, about 33× (the stock-kernel window itself, from
+2026-08-27, was not archived here; the earliest archived rung is the 313 ns control window). The absolute delay of each board is a
 separate, weaker number (table). This is a lab notebook with receipts for two servers we
 operate, not a distribution guide.
 
@@ -59,9 +60,9 @@ GPIO18 PPS and `pps-warm`, cmdline isolation, the IRQ-pin script that also disab
 on the RP1 link, `use_early=1`), jumper GPIO17→GPIO27 (the `pps_warm` module then drives
 the warm edge itself), and let chrony lock. On an open board the chrony residual has
 ranged from 3.1–4.0 ns on one calm night to ~8 ns on warm afternoons, with idle raw scatter
-of 7.4 ns that night and 10–12 ns on other days; the day-to-day movement tracks the OCXO's
-environment rather than the interrupt path (see `docs/PI5.md`), and an enclosure is the next
-step before any floor is quoted.
+of 7.4 ns that night and 10–12 ns on other days; the day-to-day chrony movement tracks the
+tracking-log wander figures (enclosure next; a warm-afternoon raw series has not been
+logged), and an enclosure is the next step before any floor is quoted.
 
 **Pi 4:** the original recipe below; `deploy/promote.sh` and `deploy/pps-warm-watchdog.*`.
 
@@ -110,8 +111,9 @@ hardware property. Measured silicon budget: ~10–20 ns σ. Everything else was:
    before each expected pulse, so the real edge always lands on a hot path.
 4. **F9T pulse-placement sawtooth (qErr, ±3.9 ns)** → corrected per-pulse via a
    userspace daemon publishing a chrony SHM refclock (slope −0.987 measured).
-5. **~850 ns constant delivery latency** → measured by GPIO loopback (162k shots,
-   three duty cycles) and subtracted, putting the clock on true GPS time.
+5. **~850 ns constant delivery latency** (a bias, not jitter) → measured by GPIO loopback
+   (162k shots, three duty cycles) and subtracted, so the PPS refclock no longer carries
+   that loopback-measured path delay (still not GPS-traceable).
 
 ### Key technical findings
 

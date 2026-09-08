@@ -83,7 +83,7 @@ large p99 means chrony's filter is rejecting a tail, not that the tail is absent
 ## How the load sensitivity was found and decomposed
 
 Forty hours of logs showed two regimes on the Pi 5, 8 ns and 36–48 ns, and both bad
-stretches ended to the second when an ssh session closed (an overnight terminal at ~4 % CPU,
+stretches ended within one 10-minute bucket of an ssh session closing (an overnight terminal at ~4 % CPU,
 a laptop session at ~1 %). The Pi 4 had sessions in the same windows and never moved.
 Controlled A/Bs (`data/pi5/results/`):
 
@@ -173,9 +173,9 @@ throughout.
 
 ## What the numbers mean
 
-- Chrony's 3–5 ns is a filtered residual: `filter 16` selects among 16 consecutive raw
-  samples per 4 s poll, and the `Std dev'n` is over the regression's retained polls (up to
-  64, ≈ 4 min); `nohz_full=2,3` is carried from the Pi 4 configuration where it measured as
+- Chrony's 3–5 ns is a filtered residual: the PPS refclock filters the last 16 one-hertz
+  pulses and submits a value every 4 s (`poll 2`), and the `Std dev'n` is over the
+  regression's retained points (up to 64, ≈ 4 min); `nohz_full=2,3` is carried from the Pi 4 configuration where it measured as
   a slight tail regression, and has not been re-measured on the Pi 5. Inside it sit the 54 MHz arch timer's 18.5 ns tick — the OCXO is
   frequency-disciplined by its own GPS loop, not phase-locked to the receiver's edge, so the
   pulse's phase against the tick walks at about a nanosecond per second per ppb of
@@ -197,7 +197,8 @@ throughout.
   enclosure and the SHT35 logger are the next step, and the single calm night above is a
   data point, not the floor.
 - The absolute time of the Pi 5 is uncalibrated, with the loopback bound above; the Pi 4's
-  ±90 ns is a loopback delay bound, not a GPS-traceable calibration.
+  ≈ 850 ns (with ±90 ns of unmeasurable posted-write split) is a GPIO-loopback calibration,
+  not GPS-traceable.
 
 ## Negative results, kept on purpose
 

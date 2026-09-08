@@ -2,8 +2,10 @@
 
 Two metric families are used in this file. The Pi 4 section (2026-08) uses `sudo ppstest
 /dev/pps0` windows (~945 pulses each) analysed with `tools/pps_stats.py` (integer-ns; see
-RETRACTION-float-ulp.md); its stock-kernel baseline, σ ≈ 437 ns on 7.1.8-rt, is the first
-rung of the README ladder and comes from the same window method. The Pi 5 section (2026-09)
+RETRACTION-float-ulp.md); its stock-kernel baseline, σ ≈ 437 ns on 7.1.8-rt (2026-08-27), is the first
+rung of the README ladder and comes from the same window method, but that window was not
+archived in this repo; the earliest archived window is `data/windows/pps-control-cpu0-20260829.log`
+(entry-stamp kernel, CPU0, σ 313 ns / scaled MAD 374 ns per `tools/pps_stats.py`). The Pi 5 section (2026-09)
 and every cross-board comparison use chrony's own logs: `refclocks.log` per-pulse offsets
 summarised as robust SD (1.4826 × MAD), and `statistics.log` `Std dev'n`. The two families
 are not interchangeable; the 7.4 ns cross-board figure is the robust-SD family. Raw Pi 4
@@ -170,10 +172,10 @@ Userspace loop (loopwarm2, gpio-cdev): 2.67 µs idle — 0.9 µs of syscalls.
 |---|---|---|---|
 | 10k–50k | 100 % | — | 4.3–6.4 |
 | 100k | 99.96 % | 100 % | 4.6 / 5.1 |
-
-(chronyd CPU at 100k with hardware timestamping off: 74 % of its core; 100 % from 200k up.)
 | 200k | 148k/s (74 %) | 152k/s (76 %) | 6.1 / 4.3 |
 | 300k / 400k | — | 154k / 150k per s | 4.0 / 5.5 |
+
+chronyd CPU (hardware timestamping off): 74 % of its core at 100k, 100 % from 200k up.
 
 Loss attribution: chronyd socket receive-buffer overflows (12.2 M in the first run, 46.6 M
 in the second); NIC RX errors ~5 M and ~57 M packets never reaching UDP above 300k offered.
