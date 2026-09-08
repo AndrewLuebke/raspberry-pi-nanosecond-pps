@@ -1,12 +1,23 @@
 # Raspberry Pi 5: nanosecond PPS over a PCIe interrupt
 
-**Result (2026-09-08, first overnight run of the shipped stack):** chrony PPS residual
-**3.1–4.0 ns in every hour** for 13 hands-off hours, raw per-pulse core **7.4 ns robust**
-(identical to the Pi 4 on the same edge), two pulses over 100 ns in fourteen hours, none
-over a microsecond. Under load: ≤6 ns for every load tested except cache-flushing
-stressors. The box serves ~150,000 NTP requests/s on one core with the PPS unchanged.
+**Result (2026-09-08, one calm overnight run of the shipped stack, 13 hands-off hours):**
+chrony PPS residual **3.1–4.0 ns in every hour**, raw per-pulse scatter **7.4 ns robust SD**
+(the same figure the Pi 4 shows for the same physical pulse), two pulses over 100 ns in
+those 13 hours, none over a microsecond. Under load the residual stayed at or below 6 ns for
+every load tested except cache-flushing stressors. The box answers ~150,000 NTP requests/s
+on one core with the residual in the same 4–6 ns band. One night is a data point, not a
+floor (see "What the numbers mean").
 
-Two software changes did it, both in this repo:
+Metrics: *raw* = the per-pulse offset column of `refclocks.log` for the PPS refclock,
+summarised as 1.4826 × MAD ("robust SD"), p99 of |deviation| and the count of pulses beyond
+100 ns; *chrony residual* = the `Std dev'n` column of `statistics.log` for the PPS source
+(standard deviation of the residuals of chrony's regression over its retained samples, up to
+64 at a 4 s poll, about 4 minutes), quoted as the median of the per-update values over a
+phase or hour. Every phase is hands-off: no interactive sessions on the box.
+
+Two patches did the last, decisive part of it, on top of a box that was already an RT kernel
+with isolated cores, IRQ pinning, ASPM L1 off on the RP1 link, an OCXO-injected clock and a
+GPIO warm edge (the ladder below is the argument; the two changes are its last two rungs):
 
 1. **Stamp before the PCIe read.** On a Pi 5 the GPIO interrupt is an MSI from the RP1
    south bridge; the chained handler then reads RP1's interrupt-status register over
@@ -19,6 +30,13 @@ Two software changes did it, both in this repo:
    warm edge with `pps-gpio` left an IRQ thread and `pps_event()` running on the timing
    core inside the window; a hardirq-only consumer (`modules/pps_warm`) that counts
    and returns fixed it (fork storm 32 → 5 ns).
+
+How the early stamp reaches chrony: the chained handler publishes the entry timestamp and a
+sequence number through two globals; the `pps-gpio` hardirq consumer adopts them for the
+edge it is handling only if the leaf-minus-entry delta is between 0 and 50 µs (staleness
+guard), otherwise it keeps its own stamp and counts a miss. The counters (missing, stale,
+negative) read zero on the GPS instance over the whole run. The status-read round trip was
+timed with arch-counter reads immediately before and after the `readl` in the handler.
 
 Everything else below is how we found those two things, what was ruled out on the way,
 and what the numbers do and do not mean.
@@ -45,12 +63,12 @@ per-pulse robust SD from `refclocks.log`, all hands-off, same box:
 
 | stage | idle | fork storm | DRAM hog |
 |---|---|---|---|
-| isolation only (2026-09-03) | 23 ns | — | — |
-| + userspace warm edge via a second `pps-gpio` | 11–12 ns | — | — |
-| + ASPM L1 off on the RP1 link | 7.4–8 ns | 68–83 ns | 61.5 ns |
+| isolation only (2026-09-03; chrony only, no raw log yet) | 23 ns | — | — |
+| + userspace warm edge via a second `pps-gpio` (chrony only) | 11–12 ns | — | — |
+| + ASPM L1 off on the RP1 link (raw robust 14.8) | 7.4–8 ns | 68–83 ns | 61.5 ns |
 | + entry stamp (`use_early=1`) | 5.0 ns (raw 11.9) | 32 ns (raw 31) | 8.6 ns (raw 13.3) |
 | + hardirq-only warm consumer (`pps_warm`) | **4.3 ns (raw 10.4)** | **5.4 ns (raw 12.6)** | 3.7 ns (raw 5.9) |
-| + in-kernel warmer, first overnight | **3.1–4.0 ns (raw 7.4)** | 5.0 ns | 3.7 ns |
+| + in-kernel warmer (shipped stack), first overnight | **3.1–4.0 ns (raw 7.4)** | 5.0 ns | 3.7 ns |
 | Pi 4 witness, same nights | 4.5–5.0 ns (raw 7.4) | 4.4 ns | 4.9 ns |
 
 ## How the load sensitivity was found and decomposed
@@ -84,7 +102,8 @@ Three things fell out of the decomposition:
   under load. The BCM2712's `AXI_BRIDGE_LOW_LATENCY_MODE` bit was already set; a
   `brcm,fifo-qos-map` overlay at maximum priority changed nothing (the driver's own
   comment predicts this on C1 silicon, which has a spurious-QoS-0 erratum on inbound
-  traffic). A three-reboot "boot lottery" with KASLR fingerprints found no placement effect.
+  traffic). Three reboots with KASLR and IRQ-number fingerprints showed no placement effect
+  in that small sample.
 
 The instrumentation in the v2 patch then measured the mechanism directly: the PCIe status
 read is 981 ns minimum, 990 ns mean, with a tail that grows from 1.2 % to 2.7 % under load;
@@ -94,25 +113,32 @@ then shown to be the threaded warm consumer: with the warmer off entirely the st
 253 ns; with a hardirq-only consumer it costs 5 ns; a shorter lead with the threaded
 consumer made idle *worse*, because its thread was still running when the real edge landed.
 
-Batch 3 (`data/pi5/results/batch3-results.txt`) closed the map: a fork storm on the warmer's
+The "same pulse" statement is literal (one PPS wire feeds both boards) but the 7.4 ns figures
+are per-board statistics, not a pulse-by-pulse comparison; that pairwise series is what the
+calibration wire will provide. Batch 3 (`data/pi5/results/batch3-results.txt`) closed the map: a fork storm on the warmer's
 core is free, SD-card DMA is free, a two-core thermal burn that took the SoC from 49 to
 62 °C is free, fork-without-exec and exec are free, a 1.5 MB working set is free; a
 page-cache read hog, a 64 MB working set, and line-rate NIC DMA cost 9–15 ns; only the
 cache-maintenance stressors (cluster-wide cache and I-cache invalidates) defeat the warmer.
-Operational rule: no JIT runtimes or self-modifying code on the time server.
+Operational rule: keep cache-maintenance-heavy loads off the time server; JIT runtimes are
+the obvious suspects but have not been tested as such.
 
 ## The hidden constant
 
 Chrony's PPS refclock steers the clock until the measured offset is zero, so a *constant*
 path delay is invisible: "System time 0 ns" is a self-consistency check, not an absolute
-one. When the entry stamp went live, the Pi 5's own NTP measurement of the Pi 4 stepped
-from −5.9 to −3.7 µs at that minute — exactly the 2.2 µs entry-to-leaf mean the patch had
-measured. The Pi 5 had been running ≥2.2 µs behind GPS all along. The remaining
-pin-to-entry delay (the MSI trip) is still uncalibrated; the in-kernel loopback in
-`pps_warm` v2 puts the loop at 1.76 µs at idle (robust 82 ns), which bounds it at roughly
-1.1–1.3 µs once a plausible outbound write flight is subtracted. The calibration recipe
-(pulse a spare pin at handler entry, wire it to the Pi 4, pair the stamps on the Pi 4's
-clock with `tools/tic-pair.py`) is built and waiting for a jumper.
+one. A differential check exists: when the entry stamp went live, the Pi 5's own NTP
+measurement of the Pi 4 stepped from −5.9 to −3.7 µs at that minute, matching the 2.2 µs
+entry-to-leaf mean the patch had measured, so the stamp really did move by the software
+path the instrumentation reported. That is all the NTP number is used for: the remaining
+−3.7 µs mixes network asymmetry, the Pi 4's own delay and the Pi 5's, and cannot be read as
+an error against GPS. The Pi 5's remaining pin-to-entry delay (the MSI trip) is
+uncalibrated; the in-kernel loopback in `pps_warm` v2 measures the write-plus-return loop at
+1.76 µs at idle (robust 82 ns), which bounds pin-to-entry at roughly 1.1–1.3 µs once a
+plausible outbound write flight is subtracted. The calibration recipe (pulse a spare pin at
+handler entry, wire it to the Pi 4, pair the stamps on the Pi 4's clock with
+`tools/tic-pair.py`) is built and waiting for a jumper; the Pi 4's own figure, ±90 ns, is a
+GPIO-loopback delay bound and not GPS-traceable either.
 
 ## Serving
 
@@ -128,23 +154,28 @@ clock with `tools/tic-pair.py`) is built and waiting for a jumper.
 The ceiling is chronyd's single thread (~6.6 µs per request on one A76 at 2.4 GHz; the
 socket receive buffer overflows above it), the same with or without per-packet hardware
 timestamps. The NIC and softirq path saturate around 250–300k packets/s inbound, well
-below the ~1.1 M/s the wire could carry. The PPS never noticed any of it.
+below the ~1.1 M/s the wire could carry. The chrony residual stayed in its 4–6 ns band
+throughout.
 
 ## What the numbers mean
 
-- Chrony's 3–5 ns is a filtered residual (`filter 16` over a ~4-minute regression). Inside
-  it sit the 54 MHz arch timer's quantization (5.3 ns RMS on every software stamp), the
+- Chrony's 3–5 ns is a filtered residual: `filter 16` selects among 16 consecutive raw
+  samples per 4 s poll, and the `Std dev'n` is over the regression's retained polls (up to
+  64, ≈ 4 min). Inside it sit the 54 MHz arch timer's 18.5 ns tick (5.3 ns RMS of
+  quantization on every software stamp), the
   F9T's few-ns pulse-placement sawtooth (uncorrected on this box), and a couple of
   nanoseconds of warmed MSI path. The raw per-pulse core, 7.4 ns robust, is the number to
   compare between boards; the Pi 4 shows the same 7.4 ns. The Pi 5's lower chrony number is
   the absence of a tail, not a better core.
 - Day-to-day the idle floor moves between ~4 and ~8 ns with the room: chrony's tracking
   log shows system-offset wander per 4-minute window of 0.6 ns on calm nights and 3–4 ns on
-  warm afternoons while the raw core stays at 7.4. That is the OCXO in moving air (the Pi 4
-  is boxed); SoC temperature is provably not involved. An enclosure and the SHT35 logger
-  are the next step, and a single-night number should not be quoted as *the* floor.
-- The absolute time of the Pi 5 is uncalibrated by about a microsecond (above). The Pi 4
-  is calibrated to ±90 ns.
+  warm afternoons while the raw core stays at 7.4. The evidence points at the OCXO in moving
+  air (the Pi 4 is boxed): a two-core burn that took the SoC from 49 to 62 °C moved nothing,
+  which argues against die temperature, though it does not isolate every board gradient. An
+  enclosure and the SHT35 logger are the next step, and the single calm night above is a
+  data point, not the floor.
+- The absolute time of the Pi 5 is uncalibrated, with the loopback bound above; the Pi 4's
+  ±90 ns is a loopback delay bound, not a GPS-traceable calibration.
 
 ## Negative results, kept on purpose
 

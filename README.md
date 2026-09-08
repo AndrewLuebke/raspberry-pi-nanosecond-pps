@@ -1,20 +1,30 @@
 # raspberry-pi-nanosecond-pps
 
-**Nanosecond-class GPS PPS timestamping on stock Raspberry Pi 4 and Pi 5 hardware, in
-software, on production stratum-1 chrony servers.** Both boards timestamp the same
-u-blox ZED-F9T pulse; both now sit at the same raw per-pulse capture core and serve time
-at a few nanoseconds of residual, roughly 25× below the "~1 µs floor" the community
-attributes to Pi GPIO timing.
+**Nanosecond-class GPS-PPS capture jitter on Raspberry Pi 4 and Pi 5, in software, on a
+pair of lab stratum-1 chrony servers.** Not stock boards: each has a GPS-conditioned OCXO
+grafted in place of its crystals (so the counter being disciplined is oscillator-grade),
+runs a PREEMPT_RT kernel with this repo's patches, isolated cores, and a GPIO loopback
+warm edge. Both timestamp the same physical u-blox ZED-F9T pulse. The raw per-pulse
+scatter on both is 7.4 ns, against 437 ns measured on the same Pi 4 with a stock kernel
+(the ladder below); the absolute delay of each board is a separate, weaker number.
+
+Metrics, defined once: **raw** = the per-pulse offset column of chrony's `refclocks.log`
+for the PPS refclock, summarised as a robust SD (1.4826 × MAD) with p99 of |deviation| and
+the count of pulses beyond 100 ns; **chrony residual** = the `Std dev'n` column of chrony's
+`statistics.log` for the PPS source (the standard deviation of the residuals of its
+regression over the retained samples, up to 64 at a 4 s poll, ≈ 4 min), quoted as the median
+of the per-update values over a phase or an hour. The chrony number is a filtered quantity
+and always sits below the raw one; the raw one is the comparison between boards.
 
 | | Pi 4 (BCM2711) | Pi 5 (BCM2712 + RP1) |
 |---|---|---|
-| raw per-pulse core (robust SD) | 7.4 ns | 7.4 ns |
-| chrony PPS residual, overnight, hands-off | 4.5–5.0 ns | **3.1–4.0 ns** |
-| tails | rare µs outliers, filtered | none (2 pulses > 100 ns in 14 h) |
-| under load (fork storm / DRAM hog / 1000 NTP req/s) | 4.4 / 4.9 / — ns | 5.4 / 3.7 / 4.5 ns |
-| NTP serving ceiling (one core) | rate-limited by policy | ~150k req/s, PPS unchanged |
-| absolute delivery calibration | ±90 ns (GPIO loopback) | pending (~1.2 µs estimated) |
-| what removed the Linux overhead | entry stamp + steer + software-pended pre-warm IRQ | entry stamp before the PCIe status read + hardirq-only warm edge |
+| raw per-pulse scatter, robust SD | 7.4 ns | 7.4 ns |
+| chrony residual, one calm overnight, hands-off | 4.5–5.0 ns | 3.1–4.0 ns (13 h) |
+| tails in that night | rare µs outliers (3 > 1 µs / 24 h), filtered | no µs outliers; 2 pulses > 100 ns / 13 h |
+| chrony residual under load: fork storm / DRAM hog / 1000 NTP req/s | 4.4 / 4.9 / — ns | 5.0 / 3.7 / 4.5 ns (shipped stack) |
+| NTP serving ceiling, one core | rate-limited by policy | ~150k req/s; residual stayed in the 4–6 ns band |
+| absolute delivery | GPIO-loopback delay bound ±90 ns, not GPS-traceable | uncalibrated; in-kernel loopback bounds it at ~1.1–1.3 µs |
+| what the patches remove | thread wake, 3.3 µs demux, cold-cache scatter (entry stamp + steer + software-pended pre-warm IRQ) | the ~1 µs PCIe status read before the stamp, and a warm-edge IRQ thread on the timing core |
 
 Write-ups: **[`docs/PI5.md`](docs/PI5.md)** for the Pi 5 (2026-09-03 → 09-08) and the
 Pi 4 story below (2026-08-29/30). Measurements for both: `docs/MEASUREMENTS.md`.
@@ -31,28 +41,31 @@ Independent adversarial reviews of both efforts: `docs/review/`.
 | `tools/` | analysis (`pps_stats.py`, `chronylog-stats.py`, `phase-analyze.py`), the loopback calibrators (`looptest*.c`, `loopwarm2.c`, `tic-pair.py`), load generators (`ntpflood.c`, `ntpload.py`), and `pi5-experiments/` — the scripts behind every Pi 5 number |
 | `data/` | raw windows and loopback data (Pi 4), `pi5/` per-phase results and the first overnight log archive |
 | `pico/` | RP2040 PIO edge-capture firmware (the hardware-capture path, also the plan for RP1's PIO) |
-| `chrony/` | tracking-log resolution patches |
+| `chrony/` | tracking-log resolution patches (frequency/skew at ppt resolution) |
 
 ## Quick start
 
 **Pi 5:** build `rpi-7.3.y` with the two patches in `kernel/` (see `kernel/BUILD.md`), install
 `modules/pps_warm` and its overlay, copy `deploy/pi5/` into place (config.txt overlays for
 GPIO18 PPS and `pps-warm`, cmdline isolation, the IRQ-pin script that also disables ASPM L1
-on the RP1 link, `use_early=1`), jumper GPIO17→GPIO27, and let chrony lock. Expect ~4 ns
-residual on a calm night once the board is in an enclosure; expect 8 ns on an open board on
-a warm afternoon, for reasons that have nothing to do with the interrupt path.
+on the RP1 link, `use_early=1`), jumper GPIO17→GPIO27, and let chrony lock. On an open board
+the chrony residual has ranged from ~4 ns on calm nights to ~8 ns on warm afternoons while
+the raw scatter stayed at 7.4 ns; the difference tracks the OCXO's environment, not the
+interrupt path, and an enclosure is the next step before any floor is quoted.
 
 **Pi 4:** the original recipe below; `deploy/promote.sh` and `deploy/pps-warm-watchdog.*`.
 
-Honest framing for both: the chrony residual is a filtered number sitting on the 54 MHz
-arch timer's 5.3 ns quantization and the receiver's few-ns sawtooth; the raw per-pulse
-distribution (`refclocks.log`) is the comparable measurement and is published next to it.
+Honest framing for both: the 54 MHz arch timer ticks every 18.5 ns (5.3 ns RMS of
+quantization on every software stamp), the receiver contributes a few ns of pulse-placement
+sawtooth, and chrony's filter averages both; the raw per-pulse distribution is published
+next to every chrony number for that reason.
 
 ## Raspberry Pi 4 (BCM2711): the original write-up
 
-**A stock Raspberry Pi 4 timestamping GPS PPS at σ = 13 ns per pulse, serving time at
-1–2 ns RMS** — roughly 25× below the community-consensus "~1 µs floor" for Pi GPIO
-timing, achieved entirely in software over one weekend (2026-08-29/30) on a production
+**A Raspberry Pi 4 (OCXO-injected clock, RT kernel) timestamping GPS PPS at σ = 13 ns per
+pulse, with chrony steering at 1–2 ns RMS** — about 33× below the 437 ns per pulse measured
+on the same board with a stock kernel (the community's "~1 µs floor" for Pi GPIO timing is
+of that order), achieved entirely in software over one weekend (2026-08-29/30) on a lab
 stratum-1 NTP server.
 
 | stage (cumulative) | per-pulse σ | chrony filtered Std Dev |
@@ -66,7 +79,7 @@ stratum-1 NTP server.
 
 Hardware context: Pi 4B, PREEMPT_RT downstream kernel, u-blox ZED-F9T PPS on GPIO18,
 and a GPS-conditioned OCXO injected as the SoC's 54 MHz reference (so the counter being
-disciplined is itself oscillator-grade). The software here is what removed the ~25×
+disciplined is itself oscillator-grade). The software here is what removed the ~33×
 of Linux overhead sitting between that hardware and its potential.
 
 ### Why the "1 µs floor" was never silicon
