@@ -4,26 +4,34 @@
 pair of lab stratum-1 chrony servers.** Not stock boards: each has a GPS-conditioned OCXO
 grafted in place of its crystals (so the counter being disciplined is oscillator-grade),
 runs a PREEMPT_RT kernel with this repo's patches, isolated cores, and a GPIO loopback
-warm edge. Both timestamp the same physical u-blox ZED-F9T pulse. The raw per-pulse
-scatter on both is 7.4 ns, against 437 ns measured on the same Pi 4 with a stock kernel
-(the ladder below); the absolute delay of each board is a separate, weaker number.
+warm edge. Both timestamp the same physical u-blox ZED-F9T pulse. On one calm night the
+raw per-pulse scatter of both was 7.4 ns robust SD; the Pi 4's historical ladder, in a
+different metric (`ppstest` sample SD over ~945-pulse windows), runs from 437 ns on a stock
+kernel to 13.4 ns with the patches, about 33×. The absolute delay of each board is a
+separate, weaker number (table). This is a lab notebook with receipts for two servers we
+operate, not a distribution guide.
 
-Metrics, defined once: **raw** = the per-pulse offset column of chrony's `refclocks.log`
+Metrics, defined once. **raw** = the per-pulse offset column of chrony's `refclocks.log`
 for the PPS refclock, summarised as a robust SD (1.4826 × MAD) with p99 of |deviation| and
-the count of pulses beyond 100 ns; **chrony residual** = the `Std dev'n` column of chrony's
-`statistics.log` for the PPS source (the standard deviation of the residuals of its
-regression over the retained samples, up to 64 at a 4 s poll, ≈ 4 min), quoted as the median
-of the per-update values over a phase or an hour. The chrony number is a filtered quantity
-and always sits below the raw one; the raw one is the comparison between boards.
+the count of pulses beyond 100 ns; each board's raw figure is measured against the GPS
+second, so it includes the receiver's common-mode qErr sawtooth, and the two boards' figures
+are per-board statistics, not a pulse-by-pulse comparison (that pairwise series is not yet
+taken). **chrony residual** = the `Std dev'n` column of chrony's `statistics.log` for the
+PPS source: the PPS refclock filters the last 16 one-hertz pulses and submits a value every
+4 s (`poll 2`), and the residual is the standard deviation of chrony's regression over up to
+64 of those points (≈ 4 min); quoted as the median of the per-update values over a phase or
+hour. The chrony number is a filtered quantity and sits below the raw one. The Pi 4's
+historical ladder uses a third measure, `ppstest` sample SD, and is labelled where used.
 
 | | Pi 4 (BCM2711) | Pi 5 (BCM2712 + RP1) |
 |---|---|---|
-| raw per-pulse scatter, robust SD | 7.4 ns | 7.4 ns |
-| chrony residual, one calm overnight, hands-off | 4.5–5.0 ns | 3.1–4.0 ns (13 h) |
-| tails in that night | rare µs outliers (3 > 1 µs / 24 h), filtered | no µs outliers; 2 pulses > 100 ns / 13 h |
-| chrony residual under load: fork storm / DRAM hog / 1000 NTP req/s | 4.4 / 4.9 / — ns | 5.0 / 3.7 / 4.5 ns (shipped stack) |
-| NTP serving ceiling, one core | rate-limited by policy | ~150k req/s; residual stayed in the 4–6 ns band |
-| absolute delivery | GPIO-loopback delay bound ±90 ns, not GPS-traceable | uncalibrated; in-kernel loopback bounds it at ~1.1–1.3 µs |
+| raw per-pulse scatter, robust SD, one calm night (2026-09-08, 02:00–15:00 UTC) | 7.4 ns | 7.4 ns |
+| chrony residual, that night, hands-off | 4.5–5.0 ns | 3.1–4.0 ns (13 complete hours) |
+| tails in that night's window | 3 pulses > 1 µs, filtered | no µs outliers; 2 pulses > 100 ns |
+| raw scatter, idle, other days | — | 10–12 ns (calm night is the best case) |
+| chrony residual under load, shipped stack: fork storm / DRAM hog / NTP ≤ 1000 req/s | 4.4 / 4.9 / — ns | 5.0 (p99 106) / 3.7 (p99 242) / 4.2–5.1 ns; page-cache reads, 64 MB working set, line-rate NIC: 9–15 ns; cache-maintenance stressors: 37–109 ns |
+| NTP serving ceiling, one core | rate-limited by policy | ~150k req/s; residual ≤ 6.4 ns throughout |
+| absolute delivery | loopback-calibrated ≈ 850 ns, ±90 ns unmeasurable posted-write split; not GPS-traceable | uncalibrated; in-kernel loop 1.76 µs is the upper bound on pin-to-entry (~1.1–1.3 µs after subtracting a plausible write flight, not measured) |
 | what the patches remove | thread wake, 3.3 µs demux, cold-cache scatter (entry stamp + steer + software-pended pre-warm IRQ) | the ~1 µs PCIe status read before the stamp, and a warm-edge IRQ thread on the timing core |
 
 Write-ups: **[`docs/PI5.md`](docs/PI5.md)** for the Pi 5 (2026-09-03 → 09-08) and the
@@ -48,25 +56,29 @@ Independent adversarial reviews of both efforts: `docs/review/`.
 **Pi 5:** build `rpi-7.3.y` with the two patches in `kernel/` (see `kernel/BUILD.md`), install
 `modules/pps_warm` and its overlay, copy `deploy/pi5/` into place (config.txt overlays for
 GPIO18 PPS and `pps-warm`, cmdline isolation, the IRQ-pin script that also disables ASPM L1
-on the RP1 link, `use_early=1`), jumper GPIO17→GPIO27, and let chrony lock. On an open board
-the chrony residual has ranged from ~4 ns on calm nights to ~8 ns on warm afternoons while
-the raw scatter stayed at 7.4 ns; the difference tracks the OCXO's environment, not the
-interrupt path, and an enclosure is the next step before any floor is quoted.
+on the RP1 link, `use_early=1`), jumper GPIO17→GPIO27 (the `pps_warm` module then drives
+the warm edge itself), and let chrony lock. On an open board the chrony residual has
+ranged from 3.1–4.0 ns on one calm night to ~8 ns on warm afternoons, with idle raw scatter
+of 7.4 ns that night and 10–12 ns on other days; the day-to-day movement tracks the OCXO's
+environment rather than the interrupt path (see `docs/PI5.md`), and an enclosure is the next
+step before any floor is quoted.
 
 **Pi 4:** the original recipe below; `deploy/promote.sh` and `deploy/pps-warm-watchdog.*`.
 
-Honest framing for both: the 54 MHz arch timer ticks every 18.5 ns (5.3 ns RMS of
-quantization on every software stamp), the receiver contributes a few ns of pulse-placement
-sawtooth, and chrony's filter averages both; the raw per-pulse distribution is published
-next to every chrony number for that reason.
+Honest framing for both: the 54 MHz arch timer ticks every 18.5 ns, and because the OCXO is
+frequency-disciplined rather than phase-locked to the receiver's edge, the pulse's phase
+against that tick walks slowly, so quantization enters as a slow sawtooth of up to ±9.3 ns
+(≤ 5.3 ns RMS over an hour, not white per pulse); the receiver adds a few ns of pulse-
+placement sawtooth; chrony's filter averages both. The raw per-pulse distribution is
+published next to every chrony number for that reason.
 
 ## Raspberry Pi 4 (BCM2711): the original write-up
 
-**A Raspberry Pi 4 (OCXO-injected clock, RT kernel) timestamping GPS PPS at σ = 13 ns per
-pulse, with chrony steering at 1–2 ns RMS** — about 33× below the 437 ns per pulse measured
-on the same board with a stock kernel (the community's "~1 µs floor" for Pi GPIO timing is
-of that order), achieved entirely in software over one weekend (2026-08-29/30) on a lab
-stratum-1 NTP server.
+**A Raspberry Pi 4 (OCXO-injected clock, RT kernel) timestamping GPS PPS at σ = 13.4 ns per
+pulse (`ppstest` sample SD), with chrony steering at 1–2 ns RMS** — about 33× below the
+437 ns per pulse measured on the same board with a stock kernel in the same metric (the
+community's "~1 µs floor" for Pi GPIO timing is of that order), achieved in software on
+OCXO-grafted RT hardware over one weekend (2026-08-29/30) on a lab stratum-1 NTP server.
 
 | stage (cumulative) | per-pulse σ | chrony filtered Std Dev |
 |---|---|---|
@@ -123,22 +135,8 @@ hardware property. Measured silicon budget: ~10–20 ns σ. Everything else was:
   quantizes every statistic (`docs/RETRACTION-float-ulp.md`). All analysis here is
   integer-nanosecond.
 
-### Repo layout
-
-- `kernel/` — the carried patch set vs rpi-7.1.y (entry stamp + gate, in-probe steer,
-  use_early consumption with staleness guard, fast pps_get_ts) + build recipe.
-- `modules/` — `pps_prewarm.c` (the warm-shot module, watchdog-managed) and
-  `pps_steer.c` (runtime steering; obsolete once the pinctrl patch is in).
-- `tools/` — integer-ns statistics, GICD steering/poke tools, loopback calibrators.
-- `daemon/` — `qpps-shm.py`: qErr + delivery-latency corrected PPS → chrony SHM.
-- `deploy/` — watchdog (arm-gating + anomaly disarm + estop), promote script, boot
-  config examples.
-- `data/` — the measurement windows and loopback datasets behind every number above.
-- `docs/` — architecture, measurements, calibration, the adversarial reviews, the
-  float-ULP retraction, roadmap; `report.html` is the illustrated summary.
-
 ### Status
 
-Private/pre-release. Running in production on the author's stratum-1 since 2026-08-29;
-multi-week soak data, the ADEV "bathtub" analysis, and a Pi 5/CM5 (RP1) port
-investigation to follow. Not yet advice; currently a lab notebook with receipts.
+Lab notebook with receipts for two servers we operate (a Pi 4 and, since 2026-09, a Pi 5 —
+see `docs/PI5.md`); private/pre-release; not a distribution guide. The Pi 4 delivery figure
+is a loopback bound (≈ 850 ± 90 ns), the Pi 5's is uncalibrated; neither is GPS-traceable.

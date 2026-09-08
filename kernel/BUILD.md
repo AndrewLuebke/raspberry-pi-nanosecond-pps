@@ -50,7 +50,8 @@ Gotchas learned the hard way:
 # Pi 5 (BCM2712 + RP1): entry-stamp kernel
 
 Branch `rpi-7.3.y` (snapshot of 2026-09-01, 7.3.0-rc1; PREEMPT_RT is native there and the
-`pps-gpio` hardirq/thread split is in-tree). Three patches, applied in this order:
+`pps-gpio` hardirq/thread split is in-tree). Two kernel patches plus the `pps_warm` module,
+applied in this order:
 
 1. `pps-timing-patches-7.3rc1.diff` — the Pi 4 entry-stamp (pinctrl-bcm2835) + the
    `pps-gpio` `use_early` consumer with its 50 µs staleness guard and delta statistics.

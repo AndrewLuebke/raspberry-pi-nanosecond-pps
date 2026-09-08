@@ -1,8 +1,13 @@
 # Measurements
 
-All per-pulse numbers from `sudo ppstest /dev/pps0` windows (~945 pulses each),
-analyzed with `tools/pps_stats.py` (integer-ns; see RETRACTION-float-ulp.md for why
-that matters). Raw logs in `data/windows/`.
+Two metric families are used in this file. The Pi 4 section (2026-08) uses `sudo ppstest
+/dev/pps0` windows (~945 pulses each) analysed with `tools/pps_stats.py` (integer-ns; see
+RETRACTION-float-ulp.md); its stock-kernel baseline, σ ≈ 437 ns on 7.1.8-rt, is the first
+rung of the README ladder and comes from the same window method. The Pi 5 section (2026-09)
+and every cross-board comparison use chrony's own logs: `refclocks.log` per-pulse offsets
+summarised as robust SD (1.4826 × MAD), and `statistics.log` `Std dev'n`. The two families
+are not interchangeable; the 7.4 ns cross-board figure is the robust-SD family. Raw Pi 4
+windows in `data/windows/`.
 
 ## Same-boot A/B ladder (2026-08-29, kernel 7.1.10-gpeds, isolcpus=2,3)
 
@@ -164,16 +169,23 @@ Userspace loop (loopwarm2, gpio-cdev): 2.67 µs idle — 0.9 µs of syscalls.
 | offered | hwtimestamp on | hwtimestamp off | PPS during |
 |---|---|---|---|
 | 10k–50k | 100 % | — | 4.3–6.4 |
-| 100k | 99.96 % | 100 % (chronyd 74 %) | 4.6 / 5.1 |
+| 100k | 99.96 % | 100 % | 4.6 / 5.1 |
+
+(chronyd CPU at 100k with hardware timestamping off: 74 % of its core; 100 % from 200k up.)
 | 200k | 148k/s (74 %) | 152k/s (76 %) | 6.1 / 4.3 |
 | 300k / 400k | — | 154k / 150k per s | 4.0 / 5.5 |
 
 Loss attribution: chronyd socket receive-buffer overflows (12.2 M in the first run, 46.6 M
 in the second); NIC RX errors ~5 M and ~57 M packets never reaching UDP above 300k offered.
 
-## First overnight, shipped stack (09-07 23:32 → 09-08 15:20 UTC, no logins)
+## First overnight, shipped stack (archive 09-07 23:32 → 09-08 15:20 UTC)
 
-Hourly chrony 3.1–4.0 ns (13 clean hours), raw robust 7.4 every hour, raw SD 6.3–8.8,
-|max| 30–50 ns typical, 2 pulses > 100 ns (245, 112), 0 > 1 µs; SoC 52.5 → 47 °C with no
-correlation; warmer 58,856 shots, 0 misses, loop mean 1.96 µs. Pi 4 same night: 5.0 / 4.5 ns,
-raw robust 7.4, 3 pulses > 1 µs. Archive: `data/pi5/soak-20260908-*.tgz`.
+The archive spans 15.8 h and includes the NTP serving tests (23:58–01:18 UTC, ending with a
+chronyd restart to restore hardware timestamping). The residual series is the 13 complete
+hands-off hours 02:00–15:00 UTC (no logins from 01:18 until the 15:20 read; the 01h hour
+contains the restart transient and is excluded; 15h is partial). Hourly chrony 3.1–4.0 ns,
+raw robust 7.4 every hour, raw SD 6.3–8.8, |max| 30–50 ns typical, 2 pulses > 100 ns (245,
+112), 0 > 1 µs; SoC 52.5 → 47 °C with no correlation. Warmer counter at the read: 58,856 shots,
+0 misses, loop mean 1.96 µs — wall-clock since the 22:58 UTC boot, not the residual series.
+Pi 4 in the same 24 h: 5.0 / 4.5 ns, raw robust 7.4, 3 pulses > 1 µs. Archive:
+`data/pi5/soak-20260908-*.tgz`.

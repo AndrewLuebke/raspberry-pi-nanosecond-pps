@@ -7,20 +7,26 @@
       ~1e-10 @ 1 d figure comes from the noisy era and is expected to drop.
 - [ ] PMU fingerprint of the residual 13 ns (L2D_CACHE_REFILL / BR_MIS_PRED sampled
       at the stamp) + LPDDR4 refresh-bump histogram check (+140/+280 ns).
-- [ ] Tighten the delivery-latency ±90 ns via external observer (RP2040 TIC or scope).
+- [ ] Tighten the ±90 ns uncertainty on the ~850 ns loopback delivery delay via an external
+      observer (RP2040 TIC or scope).
 - [ ] rpi-7.3.y rebase when the branch appears (hardirq split becomes native there;
       carried delta shrinks to entry-stamp + steer + guard).
 
 ## Ports / product exploration
 
 - [ ] **CM4 port**: same BCM2711 — patches apply nearly verbatim; candidate for a
-      low-cost NTP appliance tier (GENET has no HW timestamping: serving is
-      SW-stamped; discipline quality carries over).
-- [x] **Pi 5 (RP1) port — DONE 2026-09-08** (`docs/PI5.md`): 3.1–4.0 ns chrony residual
-      overnight, raw per-pulse core 7.4 ns (same as the Pi 4), no tails, ≤6 ns under
-      every load tested, ~150k NTP req/s served with the PPS untouched. Two software
-      changes: stamp at chained-handler entry before the PCIe status read, and a
-      hardirq-only warm-edge consumer.
+      low-cost NTP appliance tier (on the Pi 4, `ethtool -T` reports no PTP hardware
+      clock for GENET, so serving is SW-stamped there; the CM4's SYNC_IN path has not
+      been evaluated; discipline quality carries over).
+- [x] **Pi 5 (RP1) port — DONE 2026-09-08** (`docs/PI5.md`): on one calm night 3.1–4.0 ns
+      chrony residual with raw per-pulse robust SD 7.4 ns (the Pi 4's figure); idle raw
+      10–12 ns on other days; under load fork storm 5.0 ns, DRAM hog 3.7 ns (raw p99 242),
+      page-cache / 64 MB / line-rate NIC 9–15 ns, cache-maintenance stressors 37–109 ns;
+      ~150k NTP req/s served on one core with the residual ≤ 6.4 ns. Two kernel-side
+      changes on top of an isolated RT box with an OCXO clock: stamp at chained-handler
+      entry before the PCIe status read, and a hardirq-only warm-edge consumer. One night
+      is a data point, not a floor; the enclosure and the calibration below are what make
+      the number quotable.
 - [ ] **Pi 5 delivery constant**: pin→entry is uncalibrated (≈1.2 µs by the in-kernel loop
       estimate). Wire GPIO22 (pulsed at handler entry) to a Pi 4 GPIO and pair the stamps
       on the Pi 4's clock (`tools/tic-pair.py`); split the posted-write flight with the
@@ -29,9 +35,12 @@
       the OCXO in room air (SoC heat proven irrelevant: +13 °C moved nothing). Box it,
       log the box temperature (`deploy/pi5/sht35.py`), publish the temperature envelope.
 - [ ] **Pi 5 hardware capture (RP1 PIO)**: the remaining raw core is dominated by the
-      54 MHz arch-timer quantum (5.3 ns RMS). Run `pico/ppscap.pio` on RP1's PIO, map
+      54 MHz arch-timer quantum (≤ 5.3 ns RMS). Run `pico/ppscap.pio` on RP1's PIO, map
       PIO counts to system time by averaged cross-reads (both domains hang off the same
-      OCXO), feed chrony via SHM. Expected raw core 2–3 ns, load-immune by construction.
+      OCXO), feed chrony via SHM. The latch would be load-immune; the readout is not
+      unless the count comes out of a FIFO without a firmware round trip on the critical
+      path (RP1 PIO registers other than the FIFOs are firmware-proxied). 2–3 ns raw is a
+      target, not a result.
 - [ ] Pi 5: qErr (QPPS) as the steering refclock once the capture floor is below the
       F9T sawtooth; `filter 8/16/32` sweep on a boxed night; rc2 rebase when
       `rpi-7.3.y` moves; D0-stepping board comparison (C1 inbound-QoS erratum) if one
