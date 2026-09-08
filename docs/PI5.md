@@ -214,3 +214,41 @@ Two adversarial reviews by an independent model with source access
 (`docs/review/GROK-NODE-REVIEW-PI5-1.md`, `-2.md`, with the briefs) shaped the
 instrumentation (stamp before the read; split the statistics by pin; publish raw
 per-pulse numbers next to chrony's) and the honesty of the claims above.
+
+## qErr on the second Pi, and filling the gaps in it
+
+The Pi 5 has no serial link to the F9T; its per-pulse quantization correction (qErr, UBX-TIM-TP)
+comes from the Pi 4 over UDP (`daemon/qerr-forward.py`), one datagram per pulse ~0.9 s ahead,
+carrying the last four (second, qErr) pairs. `daemon/qpps-shm-peer.py` fuses it with the local
+kernel stamp into chrony's SHM unit 2 (QPPS). Since 2026-09-08 QPPS is the Pi 5's steering
+refclock; on the same overnight pulses it trims the raw scatter by ~0.5 ns (SD 7.93 → 7.45) and
+leaves chrony's residual unchanged (3.60 vs 3.57), as expected for a 2.3 ns RMS sawtooth under
+`filter 16`. Its value grows as the capture floor drops.
+
+A lost datagram means the pulse's qErr is unknown when it is stamped (the redundant copies arrive
+later). qErr is predictable: a sawtooth of period 7.86 ns (one receiver time-pulse clock cycle)
+whose slope, the ~1 ppb residual of the time-pulse time-base against GNSS, wanders slowly
+(−0.96 → +1.43 ns/s over 15 minutes in the archived series, `data/pi5/qerr-900s-20260908.txt`).
+The feeder therefore predicts a missing second as last-known + gap × slope, slope = median of the
+consecutive-second steps over the last 8 s, wrapped into ±P/2.
+
+The adversarial review of that predictor (`docs/review/GROK-NODE-REVIEW-PI5-3-QERR-PREDICTOR.md`)
+caught the trap: scoring the error circularly hides predictions that land on the wrong side of the
+sawtooth cut, which look like 0 ns but are a full 7.8 ns wrong to chrony. The live test of the
+first version confirmed it exactly: robust error 0.12 ns at a 1 s gap, and 4–5 % of published
+predictions off by one period at gaps of 1–4 s. The shipped version (v3) caps the gap at 4 s,
+refuses to publish a prediction within 0.8 ns of ±P/2, and never publishes an uncorrected
+(qErr = 0) sample, skipping the pulse instead; chrony's filter and the PPS fallback source cover a
+skipped pulse. Live result with induced drops (12 min per gap, one gap every 30 s):
+
+| gap | published | linear error robust / p90 / p99 / max | published > 3 ns | skipped at the cut (all straddles caught) |
+|---|---|---|---|---|
+| 1 s | 47 | 0.26 / 0.48 / 0.53 / 0.61 ns | 0 | 14 (3 were straddles) |
+| 2 s | 52 | 0.40 / 0.55 / 0.72 / 0.92 ns | 0 | 9 (1) |
+| 3 s | 50 | 0.32 / 0.67 / 0.92 / 1.08 ns | 0 | 10 (3) |
+| 4 s | 46 | 0.38 / 0.89 / 1.12 / 1.25 ns | 0 | 14 (2) |
+| 8 s | none published (gap cap) | — | — | — |
+
+QPPS raw per-pulse statistics during every drop phase matched the no-drop control (robust 5.9–7.4,
+p99 14–17 ns, no pulse over 100 ns), and chrony's residual stayed 3.2–3.8 ns. The receiver's clock
+drift field (~430 ns/s) is not the sawtooth slope and must not be fed to the predictor.

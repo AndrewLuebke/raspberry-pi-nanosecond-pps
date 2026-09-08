@@ -191,3 +191,13 @@ raw robust 7.4 every hour, raw SD 6.3–8.8, |max| 30–50 ns typical, 2 pulses 
 0 misses, loop mean 1.96 µs — wall-clock since the 22:58 UTC boot, not the residual series.
 Pi 4 in the same 24 h: 5.0 / 4.5 ns, raw robust 7.4, 3 pulses > 1 µs. Archive:
 `data/pi5/soak-20260908-*.tgz`.
+
+## qErr predictor, live drop tests (09-08, Pacific 11:07–12:52)
+
+Feeder withholds K consecutive datagrams every 30 (gap = K−3 s), keeps the withheld values as truth,
+logs prediction error per pulse. v2 (no gate, no cap), linear error: gap 1 robust 0.12 ns but 4/97
+published one period off (max 7.81); gap 2 5/97; gap 4 5/96; gap 8 3/24 (12.5 %); gap 11 6/23.
+Circular scoring of the same run: 0.10 / 0.36 / 0.47 — the metric that hid it. v3 (cut gate 0.8 ns,
+MAX_GAP 4, skip instead of qErr=0): see the table in PI5.md; zero published > 3 ns at any gap; QPPS
+raw p99 14–17 ns in every phase vs 15 in the control; chrony residual 3.2–3.8. Result files:
+`data/pi5/results/droptest-results.txt`, `droptest3-results.txt`.

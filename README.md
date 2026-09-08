@@ -47,7 +47,7 @@ Independent adversarial reviews of both efforts: `docs/review/`.
 | `kernel/` | the kernel patches: Pi 4 entry-stamp + steer (`pinctrl-bcm2835`), the `pps-gpio` `use_early` consumer, the Pi 5 RP1 entry-stamp with per-pin instrumentation; `BUILD.md` |
 | `modules/` | `pps_prewarm` (Pi 4 software-pended warm IRQ), `pps_steer`, `pps_warm/` (Pi 5 hardirq-only warm consumer + in-kernel warmer with loop-latency readback, and its DT overlay) |
 | `deploy/`, `deploy/pi5/` | the exact running configuration of each server: cmdline, config.txt, udev, systemd units, IRQ pinning, chrony refclock lines |
-| `daemon/` | qErr-corrected PPS → chrony SHM feeder (`qpps-shm.py`), the qErr forwarder that lets a second Pi use the F9T's per-pulse correction (`qerr-forward.py`), and the peer-edition feeder |
+| `daemon/` | qErr-corrected PPS → chrony SHM feeder (`qpps-shm.py`), the qErr forwarder that lets a second Pi use the F9T's per-pulse correction (`qerr-forward.py`), and the peer-edition feeder with the gap predictor (`qpps-shm-peer.py`, see `docs/PI5.md`) |
 | `tools/` | analysis (`pps_stats.py`, `chronylog-stats.py`, `phase-analyze.py`), the loopback calibrators (`looptest*.c`, `loopwarm2.c`, `tic-pair.py`), load generators (`ntpflood.c`, `ntpload.py`), and `pi5-experiments/` — the scripts behind every Pi 5 number |
 | `data/` | raw windows and loopback data (Pi 4), `pi5/` per-phase results and the first overnight log archive |
 | `pico/` | RP2040 PIO edge-capture firmware (the hardware-capture path, also the plan for RP1's PIO) |
