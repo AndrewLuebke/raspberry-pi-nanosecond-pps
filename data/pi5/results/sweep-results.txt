@@ -1,0 +1,47 @@
+  W150 loopwarm: lead=150us margin=30us, GPIO17 -> jumper -> GPIO27
+  W150 fires_before=7
+2026-09-07T17:32:45 LEAD150_start
+2026-09-07T17:40:45 LEAD150_end
+2026-09-07T17:40:45 STORM_LEAD150_start
+2026-09-07T17:46:45 STORM_LEAD150_end
+  W fires_after=1087
+  W loopwarm: fires=600 skips=0 lat_max=9448ns
+  W80 loopwarm: lead=80us margin=30us, GPIO17 -> jumper -> GPIO27
+  W80 fires_before=1089
+2026-09-07T17:51:18 LEAD80_start
+2026-09-07T17:59:18 LEAD80_end
+  W fires_after=1570
+  W tail: option used in invalid context -- 1
+  W50 loopwarm: lead=50us margin=30us, GPIO17 -> jumper -> GPIO27
+  W50 fires_before=1572
+2026-09-07T17:59:52 LEAD50_start
+2026-09-07T18:07:52 LEAD50_end
+  W fires_after=2052
+  W tail: option used in invalid context -- 1
+  W30 loopwarm: lead=30us margin=30us, GPIO17 -> jumper -> GPIO27
+  W30 fires_before=2052
+2026-09-07T18:08:25 LEAD30_start
+2026-09-07T18:16:25 LEAD30_end
+2026-09-07T18:16:25 STORM_LEAD30_start
+2026-09-07T18:22:26 STORM_LEAD30_end
+  W fires_after=2052
+  W tail: option used in invalid context -- 1
+  FINAL service=active fires=2054
+  FINAL  165:          0          0      62920          0  pinctrl-rp1                  
+  FINAL  167:         40          0      65261          0  pinctrl-rp1                  
+  FINAL #* PPS 0 2 377 4 +37ns[ +46ns] +/- 104ns
+  A per-phase summary (first 120 s of each phase skipped as settle):
+  A          LEAD150: med    4.3  p90    5.1  max    5.7  n=90  (8 min)
+  A    STORM_LEAD150: med    5.4  p90    6.1  max    6.8  n=60  (6 min)
+  A           LEAD80: med    4.4  p90    4.8  max    6.5  n=90  (8 min)
+  A           LEAD50: med    4.7  p90    5.6  max    6.3  n=90  (8 min)
+  A           LEAD30: med   16.7  p90   20.6  max   21.5  n=89  (8 min)
+  A     STORM_LEAD30: med  199.8  p90  246.2  max  292.1  n=61  (6 min)
+  A raw per-pulse per phase (settle 2 min skipped):
+  A          LEAD150: n=273 mean +0.8 sd 9.3 robust 10.4 p90 15 p99 21 max 36 >100ns 0
+  A    STORM_LEAD150: n=192 mean -0.7 sd 14.1 robust 12.6 p90 18 p99 26 max 128 >100ns 1
+  A           LEAD80: n=280 mean -0.4 sd 9.6 robust 11.1 p90 16 p99 21 max 26 >100ns 0
+  A           LEAD50: n=279 mean -0.4 sd 9.8 robust 10.4 p90 15 p99 25 max 32 >100ns 0
+  A           LEAD30: n=283 mean -11.1 sd 78.2 robust 20.8 p90 59 p99 427 max 654 >100ns 18
+  A     STORM_LEAD30: n=190 mean -29.0 sd 478.1 robust 326.2 p90 714 p99 1806 max 2080 >100ns 138
+2026-09-07T18:27:32 ALL_DONE_SWEEP

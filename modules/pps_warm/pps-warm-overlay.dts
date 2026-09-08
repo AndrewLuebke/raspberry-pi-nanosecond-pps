@@ -1,0 +1,18 @@
+/dts-v1/;
+/plugin/;
+/* Hardirq-only warm-edge consumer on GPIO27; v2 also drives the edge on GPIO17 from the kernel. */
+/ {
+	compatible = "brcm,bcm2712";
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			pps_warm: pps-warm {
+				compatible = "pps-warm";
+				gpios = <&gpio 27 0>;
+				drive-gpios = <&gpio 17 0>;
+				debug-gpios = <&gpio 22 0>;	/* pulsed at PPS handler entry when pinctrl_rp1.rp1_pps_debug_gpio=22 */
+				status = "okay";
+			};
+		};
+	};
+};

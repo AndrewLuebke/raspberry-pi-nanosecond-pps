@@ -1,0 +1,17 @@
+[Unit]
+Description=Forward ZED-F9T qErr (UBX-TIM-TP) to peer Pis for remote QPPS
+After=gpsd.service
+Wants=gpsd.service
+
+[Service]
+ExecStart=/usr/local/bin/qerr-forward.py 192.168.1.18
+Restart=always
+RestartSec=5
+Nice=5
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

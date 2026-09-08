@@ -1,0 +1,1 @@
+SUBSYSTEM=="pps", ATTR{name}=="pps@12.-1", SYMLINK+="pps-gps"

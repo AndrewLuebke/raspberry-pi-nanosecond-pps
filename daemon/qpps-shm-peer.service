@@ -1,0 +1,14 @@
+[Unit]
+Description=qErr-corrected PPS -> chrony SHM unit 2 (QPPS), qErr fed from .17
+After=network-online.target chronyd.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+ExecStartPre=/bin/bash -c 'for i in $(seq 30); do [ -e /dev/pps-gps ] && exit 0; sleep 1; done; exit 0'
+ExecStart=/usr/local/bin/qpps-shm.py 0
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

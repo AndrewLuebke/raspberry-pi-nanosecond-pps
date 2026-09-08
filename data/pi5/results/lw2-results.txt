@@ -1,0 +1,21 @@
+  LW2 3250759
+  LW2 loopwarm2: readback from /dev/pps0 (pps@1b)
+  LW2 loopwarm: lead=150us margin=30us, GPIO17 -> jumper -> GPIO27
+  LW2 1788752959.999853591,4870
+2026-09-07T03:49:22 LW2_START
+2026-09-07T03:49:22 IDLE_LW2_start
+2026-09-07T03:59:22 IDLE_LW2_end
+  STAT_idle loopwarm2: loop latency n=600 mean=2732 min=2426 max=6296 miss=0 hist<1000:0 <1500:0 <2000:0 <2500:13 <3000:541 <4000:42 <8000:4 >=8000:0
+2026-09-07T03:59:22 FORKSTORM_LW2_start
+2026-09-07T04:05:22 FORKSTORM_LW2_end
+  STAT_afterstorm loopwarm2: loop latency n=600 mean=2732 min=2426 max=6296 miss=0 hist<1000:0 <1500:0 <2000:0 <2500:13 <3000:541 <4000:42 <8000:4 >=8000:0
+  LW2 service=active
+  LW2 1085
+2026-09-07T04:07:26 LW2_STOP
+  A loop-latency samples: 1084
+  A       IDLE_LW2: n=480 median 2667 mean 2713 min 2445 p10 2537 p90 2908 p99 3482 max 4000 ns | robust sd 138 ns
+  A  FORKSTORM_LW2: n=240 median 7259 mean 7402 min 5648 p10 6334 p90 8444 p99 9463 max 10037 ns | robust sd 851 ns
+  C per-phase summary (first 120 s of each phase skipped as settle):
+  C         IDLE_LW2: med    5.3  p90    6.2  max    6.5  n=120  (10 min)
+  C    FORKSTORM_LW2: med   23.7  p90   45.6  max   59.8  n=60  (6 min)
+2026-09-07T04:07:27 ALL_DONE_LW2

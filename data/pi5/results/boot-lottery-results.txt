@@ -1,0 +1,41 @@
+2026-09-06T17:09:48 START waiting for reboot 1 of 3
+2026-09-06T17:18:38 DOWN cycle 1
+2026-09-06T17:20:00 UP cycle 1
+  FP1 boot_id=5824dfb7-b934-4765-8161-0991bc6f91c6 kernel=7.3.0-rc1-v8-rt-v8-rt+ boot=2026-09-06 18:19:13
+  FP1 kallsyms: gic_handle_irq=ffffffdf5be100e8 gic_handle_irq=ffffffdf5be101c8 ktime_get_real_ts64=ffffffdf5bfb62b0 rp1_gpio_irq_handler=ffffffdf5c711188 
+  FP1 irqs: 165: pps@1b.-1 eff=166: pps@12.-1 eff=165:2 166:2 
+  FP1 pps: pps1 l1_aspm=0 lnk=ASPM Disabled temp=temp=48.8'C
+  FP1 svc: chronyd=active loopwarm=active pin=active qpps=active
+  FP1 chrony: #* PPS 0 2 377 4 -1ns[ -2ns] +/- 20ns
+2026-09-06T17:21:11 FINGERPRINT cycle 1 recorded; hands-off 15 min
+  R1 Traceback (most recent call last):
+  R1   File "<stdin>", line 11, in <module>
+  R1 ValueError: could not convert string to float: '-'
+2026-09-06T17:36:12 CYCLE 1 DONE
+2026-09-06T17:36:12 GO: ready for reboot 2 of 3
+2026-09-06T17:36:57 START waiting for reboot 2 of 3
+R1 boot+5..15min: chrony_sd med 7.6 p90 8.9 (n=150) | raw n=600 mean -3.0 sd 18.2 robust 13.3 p90 23 p99 88 max 109 >100ns 2 | boot 17:19:13Z
+2026-09-06T18:31:03 DOWN cycle 2
+2026-09-06T18:32:20 UP cycle 2
+  FP2 boot_id=707ac358-bf4a-414a-9aa9-6f566892695b kernel=7.3.0-rc1-v8-rt-v8-rt+ boot=2026-09-06 19:31:34
+  FP2 kallsyms: gic_handle_irq=ffffffdd4cc100e8 gic_handle_irq=ffffffdd4cc101c8 ktime_get_real_ts64=ffffffdd4cdb62b0 rp1_gpio_irq_handler=ffffffdd4d511188 
+  FP2 irqs: 165: pps@1b.-1 eff=166: pps@12.-1 eff=165:2 166:2 
+  FP2 pps: pps1 l1_aspm=0 lnk=ASPM Disabled temp=temp=49.9'C
+  FP2 svc: chronyd=active loopwarm=active pin=active qpps=active
+  FP2 chrony: #* PPS 0 2 377 5 +5ns[ +7ns] +/- 38ns
+2026-09-06T18:33:30 FINGERPRINT cycle 2 recorded; hands-off 15 min
+  R2 RESULT boot+5..15min: chrony_sd med 8.4 p90 10.6 (n=150) | raw n=600 mean -3.1 sd 22.4 robust 14.8 p90 29 p99 96 max 137 >100ns 5 | temp 49600
+2026-09-06T18:48:32 CYCLE 2 DONE
+2026-09-06T18:48:32 GO: ready for reboot 3 of 3
+2026-09-06T20:32:05 DOWN cycle 3
+2026-09-06T20:33:22 UP cycle 3
+  FP3 boot_id=eb0f0527-6037-4914-bf94-d92f32bb8f84 kernel=7.3.0-rc1-v8-rt-v8-rt+ boot=2026-09-06 21:32:35
+  FP3 kallsyms: gic_handle_irq=ffffffe2272100e8 gic_handle_irq=ffffffe2272101c8 ktime_get_real_ts64=ffffffe2273b62b0 rp1_gpio_irq_handler=ffffffe227b11188 
+  FP3 irqs: 165: pps@1b.-1 eff=167: pps@12.-1 eff=165:2 167:2 
+  FP3 pps: pps1 l1_aspm=0 lnk=ASPM Disabled temp=temp=50.5'C
+  FP3 svc: chronyd=active loopwarm=active pin=active qpps=active
+  FP3 chrony: #* PPS 0 2 377 2 +13ns[ +17ns] +/- 38ns
+2026-09-06T20:34:38 FINGERPRINT cycle 3 recorded; hands-off 15 min
+  R3 RESULT boot+5..15min: chrony_sd med 8.7 p90 12.4 (n=150) | raw n=599 mean -4.4 sd 20.8 robust 14.8 p90 30 p99 82 max 129 >100ns 4 | temp 50150
+2026-09-06T20:49:40 CYCLE 3 DONE
+2026-09-06T20:49:40 ALL DONE

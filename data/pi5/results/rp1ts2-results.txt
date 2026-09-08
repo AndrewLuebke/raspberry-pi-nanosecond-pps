@@ -1,0 +1,55 @@
+2026-09-07T22:57:57 DOWN
+2026-09-07T22:59:14 UP
+  CHK kernel=7.3.0-rc1-v8-rt-rp1ts2+ boot=2026-09-07 23:58:28
+  CHK [    2.925580] pps_warm: loading out-of-tree module taints kernel.
+  CHK [    2.926063] pps-warm pps-warm: hardirq-only warm consumer: irq 166 on cpu 2; kernel warmer ON (lead 150 us, timer cpu 1), debug pin owned
+  CHK use_early=Y lead_us=150 fires=118
+  CHK fires=118 driving=1 lead_us=150 timer_cpu=1 rate_hz=54000000
+  CHK loop n=118 miss=0 mean_ticks=189 min=89 max=539 sumsq=6113099 | mean_ns=3505 min_ns=1648 max_ns=9981
+  CHK hist_ticks <54:0 <81:0 <108:61 <135:8 <162:7 <216:3 <432:33 >=432:6
+  CHK write_issue mean_ticks=20 max=68
+  CHK rate_hz=54000000
+  CHK gpio18_pps n=120 sum=6575 sumsq=362329 min=53 max=79 mean_ns=1014 min_ns=981 max_ns=1462 hist<32:0 <64:111 <96:9 <128:0 <192:0 <256:0 <512:0 >=512:0
+  CHK gpio27_warm n=118 sum=6419 sumsq=350141 min=53 max=66 mean_ns=1007 min_ns=981 max_ns=1222 hist<32:0 <64:113 <96:5 <128:0 <192:0 <256:0 <512:0 >=512:0
+  CHK entry_seq gpio18=120 gpio27=118 debug_gpio=-1
+  CHK irqs: 166:2 167:2  loopwarm_svc=inactive l1_aspm=0 temp=temp=50.5'C
+  CHK     434 irq/167-pps@12.-1
+  CHK #* PPS 0 2 377 6 -2ns[ -4ns] +/- 18ns
+2026-09-07T23:00:30 VERIFIED
+2026-09-07T23:00:30 IDLE2_start
+2026-09-07T23:10:30 IDLE2_end
+  S_idle fires=718 driving=1 lead_us=150 timer_cpu=1 rate_hz=54000000
+  S_idle loop n=718 miss=0 mean_ticks=111 min=87 max=539 sumsq=11696103 | mean_ns=2064 min_ns=1611 max_ns=9981
+  S_idle hist_ticks <54:0 <81:0 <108:628 <135:39 <162:8 <216:4 <432:33 >=432:6
+  S_idle write_issue mean_ticks=10 max=68
+2026-09-07T23:10:30 STORM2_start
+2026-09-07T23:16:30 STORM2_end
+  S_storm fires=1078 driving=1 lead_us=150 timer_cpu=1 rate_hz=54000000
+  S_storm loop n=1078 miss=0 mean_ticks=148 min=87 max=539 sumsq=29885007 | mean_ns=2759 min_ns=1611 max_ns=9981
+  S_storm hist_ticks <54:0 <81:0 <108:628 <135:39 <162:8 <216:136 <432:261 >=432:6
+  S_storm write_issue mean_ticks=28 max=106
+2026-09-07T23:20:30 DRAM2_start
+2026-09-07T23:26:31 DRAM2_end
+  S_dram fires=1679 driving=1 lead_us=150 timer_cpu=1 rate_hz=54000000
+  S_dram loop n=1679 miss=0 mean_ticks=156 min=86 max=539 sumsq=49817666 | mean_ns=2903 min_ns=1592 max_ns=9981
+  S_dram hist_ticks <54:0 <81:0 <108:840 <135:65 <162:21 <216:292 <432:455 >=432:6
+  S_dram write_issue mean_ticks=35 max=148
+  S_dram rate_hz=54000000
+  S_dram gpio18_pps n=1681 sum=89964 sumsq=4818260 min=53 max=79 mean_ns=991 min_ns=981 max_ns=1462 hist<32:0 <64:1668 <96:13 <128:0 <192:0 <256:0 <512:0 >=512:0
+  S_dram gpio27_warm n=1679 sum=91229 sumsq=4969041 min=53 max=81 mean_ns=1006 min_ns=981 max_ns=1500 hist<32:0 <64:1648 <96:31 <128:0 <192:0 <256:0 <512:0 >=512:0
+  S_dram entry_seq gpio18=1681 gpio27=1679 debug_gpio=-1
+  S_dram [ 1202.447600] pps-gpio: entry->leaf delta: n=1200 mean=2288 min=1986 max=7500 sumsq=6410811717 missing=0 neg=0 stale=0 use_early=1
+  S_dram 1680 /tmp/pps_warm_ring.csv
+  A per-phase summary (first 120 s of each phase skipped as settle):
+  A            IDLE2: med    5.1  p90    6.1  max    6.8  n=120  (10 min)
+  A           STORM2: med    5.0  p90    5.7  max    6.2  n=60  (6 min)
+  A            DRAM2: med    3.7  p90    3.9  max    4.0  n=60  (6 min)
+  A raw per-pulse per phase (settle 2 min skipped):
+  A      IDLE2: n=370 mean -0.6 sd 10.6 robust 11.9 p90 17 p99 27 max 32 >100ns 0
+  A     STORM2: n=187 mean -5.0 sd 21.6 robust 11.9 p90 16 p99 106 max 194 >100ns 3
+  A      DRAM2: n=167 mean -4.5 sd 38.6 robust 5.9 p90 13 p99 242 max 270 >100ns 6
+  A loop latency (kernel warmer, ticks*18.52ns) per phase:
+  A      IDLE2: n=480 median 1759 min 1611 p90 1907 p99 2296 max 2370 ns | robust 82 ns | write-issue med 148 ns
+  A     STORM2: n=240 median 4130 min 3222 p90 4593 p99 4944 max 5463 ns | robust 384 ns | write-issue med 1148 ns
+  A      DRAM2: n=241 median 3981 min 2278 p90 4611 p99 5019 max 6037 ns | robust 549 ns | write-issue med 1241 ns
+2026-09-07T23:30:34 ALL_DONE_RP1TS2

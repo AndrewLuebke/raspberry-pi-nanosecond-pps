@@ -1,0 +1,60 @@
+2026-09-07T01:29:10 SETTLE_start
+2026-09-07T01:33:10 SETTLE_end
+  IRQ_before_storm 13: cpu2=14083 165: cpu2=4401 167: cpu2=4402 IPI0: cpu2=19 IPI1: cpu2=541 IPI2: cpu2=0 IPI3: cpu2=0 IPI4: cpu2=0 IPI5: cpu2=19 IPI6: cpu2=0 IPI7: cpu2=0 2026-09-07T01:33:10 FORKSTORM_BASE_start
+2026-09-07T01:39:10 FORKSTORM_BASE_end
+  IRQ_after_storm 13: cpu2=17498 165: cpu2=4761 167: cpu2=4762 IPI0: cpu2=19 IPI1: cpu2=545 IPI2: cpu2=0 IPI3: cpu2=0 IPI4: cpu2=0 IPI5: cpu2=20 IPI6: cpu2=0 IPI7: cpu2=0 inactive
+2026-09-07T01:43:11 WARM_OFF
+2026-09-07T01:43:11 IDLE_NOWARM_start
+2026-09-07T01:51:11 IDLE_NOWARM_end
+  IRQ_before_storm_nowarm 13: cpu2=19434 165: cpu2=5002 167: cpu2=5483 IPI0: cpu2=19 IPI1: cpu2=553 IPI2: cpu2=0 IPI3: cpu2=0 IPI4: cpu2=0 IPI5: cpu2=22 IPI6: cpu2=0 IPI7: cpu2=0 2026-09-07T01:51:11 FORKSTORM_NOWARM_start
+2026-09-07T01:57:11 FORKSTORM_NOWARM_end
+  IRQ_after_storm_nowarm 13: cpu2=21755 165: cpu2=5002 167: cpu2=5843 IPI0: cpu2=19 IPI1: cpu2=557 IPI2: cpu2=0 IPI3: cpu2=0 IPI4: cpu2=0 IPI5: cpu2=23 IPI6: cpu2=0 IPI7: cpu2=0 active
+2026-09-07T02:01:14 WARM_ON
+  THR taskset: affinity cannot be set due to PF_NO_SETAFFINITY flag set
+  THR taskset: failed to set pid 494's affinitypid 494's current affinity list: 2
+  THR : Invalid argument
+  THR taskset: affinity cannot be set due to PF_NO_SETAFFINITY flag set
+  THR taskset: failed to set pid 495's affinitypid 495's current affinity list: 2
+  THR : Invalid argument
+2026-09-07T02:03:14 THREADS_CPU3
+2026-09-07T02:03:14 IDLE_THR3_start
+2026-09-07T02:11:14 IDLE_THR3_end
+2026-09-07T02:11:14 FORKSTORM_THR3_start
+2026-09-07T02:17:15 FORKSTORM_THR3_end
+  THR taskset: affinity cannot be set due to PF_NO_SETAFFINITY flag set
+  THR taskset: failed to set pid 494's affinitypid 494's current affinity list: 2
+  THR : Invalid argument
+  THR taskset: affinity cannot be set due to PF_NO_SETAFFINITY flag set
+  THR taskset: failed to set pid 495's affinitypid 495's current affinity list: 2
+  THR : Invalid argument
+2026-09-07T02:21:15 THREADS_CPU2
+  L50 3250492
+  L50 loopwarm: lead=50us margin=30us, GPIO17 -> jumper -> GPIO27
+2026-09-07T02:23:17 LEAD50
+2026-09-07T02:23:17 IDLE_LEAD50_start
+2026-09-07T02:31:17 IDLE_LEAD50_end
+  L50 loopwarm: lead=50us margin=30us, GPIO17 -> jumper -> GPIO27
+  L50 active
+2026-09-07T02:31:20 LEAD150_RESTORED
+  FINAL loopwarm=active lead=150us margin=30us, GPIO17 -> jumper -> GPIO27
+  FINAL thread 494 irq/165-pps@1b.-1 cpus=2
+  FINAL thread 495 irq/167-pps@12.-1 cpus=2
+  FINAL use_early=Y l1_aspm=0
+  FINAL #* PPS 0 2 377 4 -0ns[ -0ns] +/- 18ns
+  A per-phase summary (first 120 s of each phase skipped as settle):
+  A           SETTLE: med    4.6  p90    5.6  max    6.0  n=30  (4 min)
+  A   FORKSTORM_BASE: med   24.5  p90   28.7  max   34.0  n=60  (6 min)
+  A      IDLE_NOWARM: med   14.4  p90   22.3  max   23.4  n=89  (8 min)
+  A   FORKSTORM_NOWARM: med  253.0  p90  265.5  max  268.1  n=61  (6 min)
+  A        IDLE_THR3: med    5.2  p90    6.9  max    7.6  n=90  (8 min)
+  A   FORKSTORM_THR3: med   17.8  p90   60.6  max   64.4  n=60  (6 min)
+  A      IDLE_LEAD50: med    7.1  p90    7.5  max    7.9  n=90  (8 min)
+  A raw per-pulse per phase (settle 2 min skipped):
+  A             SETTLE: n=90 mean -0.8 sd 11.4 robust 10.4 p90 18 p99 30 max 39 >100ns 0
+  A     FORKSTORM_BASE: n=185 mean -14.9 sd 65.9 robust 32.6 p90 98 p99 224 max 403 >100ns 19
+  A        IDLE_NOWARM: n=283 mean -0.5 sd 52.3 robust 23.7 p90 63 p99 168 max 452 >100ns 18
+  A   FORKSTORM_NOWARM: n=180 mean -52.9 sd 457.5 robust 284.7 p90 634 p99 1654 max 2746 >100ns 125
+  A          IDLE_THR3: n=280 mean +1.0 sd 11.8 robust 12.6 p90 18 p99 36 max 42 >100ns 0
+  A     FORKSTORM_THR3: n=190 mean -19.5 sd 98.9 robust 49.7 p90 171 p99 388 max 467 >100ns 37
+  A        IDLE_LEAD50: n=287 mean +0.0 sd 11.2 robust 13.3 p90 18 p99 27 max 50 >100ns 0
+2026-09-07T02:32:23 ALL_DONE_RESIDUAL

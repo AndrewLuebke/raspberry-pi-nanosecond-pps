@@ -1,0 +1,47 @@
+  PRE eth0 irq total 335729
+2026-09-07T23:58:06 SETTLE_start
+2026-09-08T00:01:06 SETTLE_end
+2026-09-08T00:01:06 NTP10000_start
+  CPU10000 chronyd cpu%  0.4 | softirq/ksoftirqd:  0.0 ksoftirqd/0  0.0 ksoftirqd/1  | load 0.95 0.46 0.31
+ntpflood: host=192.168.1.18 rate=10000/s secs=240 threads=4 sent=2400004 replies=2400004 (100.0%) achieved=10000/s
+2026-09-08T00:05:06 NTP10000_end
+2026-09-08T00:08:06 NTP20000_start
+  CPU20000 chronyd cpu%  1.2 | softirq/ksoftirqd:  0.0 ksoftirqd/0  0.0 ksoftirqd/1  | load 0.68 0.37 0.31
+ntpflood: host=192.168.1.18 rate=20000/s secs=240 threads=4 sent=4800003 replies=4799997 (100.0%) achieved=20000/s
+2026-09-08T00:12:06 NTP20000_end
+2026-09-08T00:15:06 NTP30000_start
+  CPU30000 chronyd cpu%  2.4 | softirq/ksoftirqd:  0.0 ksoftirqd/0  0.0 ksoftirqd/1  | load 0.59 0.43 0.33
+ntpflood: host=192.168.1.18 rate=30000/s secs=240 threads=4 sent=7200021 replies=7200001 (100.0%) achieved=30000/s
+2026-09-08T00:19:06 NTP30000_end
+2026-09-08T00:22:06 NTP50000_start
+  CPU50000 chronyd cpu%  4.0 | softirq/ksoftirqd:  0.0 ksoftirqd/0  0.0 ksoftirqd/1  | load 1.03 0.75 0.50
+ntpflood: host=192.168.1.18 rate=50000/s secs=240 threads=4 sent=12000001 replies=12000001 (100.0%) achieved=50000/s
+2026-09-08T00:26:06 NTP50000_end
+2026-09-08T00:29:06 NTP100000_start
+  CPU100000 chronyd cpu%  6.9 | softirq/ksoftirqd:  0.0 ksoftirqd/0  0.0 ksoftirqd/1  | load 1.87 1.12 0.73
+ntpflood: host=192.168.1.18 rate=100000/s secs=240 threads=4 sent=23999997 replies=23991326 (100.0%) achieved=100000/s
+2026-09-08T00:33:07 NTP100000_end
+2026-09-08T00:36:07 NTP200000_start
+  CPU200000 chronyd cpu% 10.3 | softirq/ksoftirqd:  0.0 ksoftirqd/0  0.0 ksoftirqd/1  | load 4.27 2.25 1.29
+ntpflood: host=192.168.1.18 rate=200000/s secs=240 threads=4 sent=47997572 replies=35448537 (73.9%) achieved=199990/s
+2026-09-08T00:40:07 NTP200000_end
+  POST eth0 irq total 82667705
+  POST #* PPS 0 2 377 2 -3ns[ -3ns] +/- 18ns
+  POST temp=52.1'C
+  A per-phase summary (first 120 s of each phase skipped as settle):
+  A           SETTLE: med    3.7  p90    3.9  max    4.0  n=14  (3 min)
+  A         NTP10000: med    4.9  p90    6.2  max    6.6  n=30  (4 min)
+  A         NTP20000: med    4.3  p90    4.5  max    4.9  n=29  (4 min)
+  A         NTP30000: med    4.6  p90    5.0  max    5.0  n=30  (4 min)
+  A         NTP50000: med    6.4  p90    6.5  max    6.7  n=29  (4 min)
+  A        NTP100000: med    4.6  p90    4.6  max    4.7  n=30  (4 min)
+  A        NTP200000: med    6.1  p90    6.3  max    6.4  n=30  (4 min)
+  A raw per-pulse per phase (settle 2 min skipped):
+  A       SETTLE: n=41 mean +2.3 sd 7.2 robust 7.4 p90 12 p99 15 max 16 >100ns 0
+  A     NTP10000: n=78 mean -2.4 sd 19.8 robust 4.4 p90 16 p99 89 max 91 >100ns 0
+  A     NTP20000: n=92 mean +2.8 sd 8.4 robust 6.7 p90 14 p99 22 max 24 >100ns 0
+  A     NTP30000: n=86 mean +1.8 sd 10.0 robust 7.4 p90 14 p99 18 max 60 >100ns 0
+  A     NTP50000: n=88 mean -16.6 sd 123.7 robust 8.2 p90 15 p99 756 max 892 >100ns 2
+  A    NTP100000: n=86 mean -5.2 sd 26.9 robust 10.4 p90 13 p99 112 max 215 >100ns 2
+  A    NTP200000: n=91 mean -7.9 sd 52.4 robust 10.4 p90 13 p99 52 max 495 >100ns 1
+2026-09-08T00:43:10 ALL_DONE_NTPMAX

@@ -1,0 +1,14 @@
+-- AER correctable counters (endpoint / root port):
+RxErr 0 BadTLP 0 BadDLLP 0 Rollover 0 Timeout 0 NonFatalErr 0 CorrIntErr 0 HeaderOF 0 TOTAL_ERR_COR 0 
+RxErr 0 BadTLP 0 BadDLLP 0 Rollover 0 Timeout 0 NonFatalErr 0 CorrIntErr 0 HeaderOF 0 TOTAL_ERR_COR 0 
+-- L1 back ON:
+		LnkCtl:	ASPM L1 Enabled; RCB 64 bytes, LnkDisable- CommClk+
+ASPM_ON 2026-09-06T16:24:21
+IDLE_ON_start 2026-09-06T16:24:21
+IDLE_ON_end 2026-09-06T16:32:21
+		LnkCtl:	ASPM Disabled; RCB 64 bytes, LnkDisable- CommClk+
+RxErr 0 BadTLP 0 BadDLLP 0 Rollover 0 Timeout 0 NonFatalErr 0 CorrIntErr 0 HeaderOF 0 TOTAL_ERR_COR 0 
+ASPM_OFF 2026-09-06T16:32:21
+IDLE_OFF2_start 2026-09-06T16:32:21
+IDLE_OFF2_end 2026-09-06T16:42:21
+DONE_RETOGGLE 2026-09-06T16:42:21

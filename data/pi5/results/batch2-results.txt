@@ -1,0 +1,41 @@
+2026-09-07T18:29:47 SETTLE_start
+2026-09-07T18:33:47 SETTLE_end
+2026-09-07T18:33:47 FORK2HZ_start
+2026-09-07T18:39:47 FORK2HZ_end
+2026-09-07T18:43:47 NTP10_start
+ntpload: host=192.168.1.18 rate=10.0/s secs=300 sent=3000 replies=3000 (100.0%)
+2026-09-07T18:48:47 NTP10_end
+2026-09-07T18:51:47 NTP50_start
+ntpload: host=192.168.1.18 rate=50.0/s secs=300 sent=15000 replies=15000 (100.0%)
+2026-09-07T18:56:47 NTP50_end
+2026-09-07T18:59:47 NTP200_start
+ntpload: host=192.168.1.18 rate=200.0/s secs=300 sent=60000 replies=60000 (100.0%)
+2026-09-07T19:04:47 NTP200_end
+2026-09-07T19:07:47 NTP1000_start
+ntpload: host=192.168.1.18 rate=1000.0/s secs=300 sent=300000 replies=300000 (100.0%)
+2026-09-07T19:12:47 NTP1000_end
+inactive
+2026-09-07T19:15:48 WARM_OFF
+2026-09-07T19:15:48 DRAM_NOWARM_start
+2026-09-07T19:21:48 DRAM_NOWARM_end
+active
+2026-09-07T19:22:20 WARM_ON
+  FINAL final: loopwarm=active pps_warm_fires=5195 use_early=Y
+  FINAL #* PPS 0 2 377 3 -0ns[ -0ns] +/- 50ns
+  A per-phase summary (first 120 s of each phase skipped as settle):
+  A           SETTLE: med    4.9  p90    5.3  max    5.6  n=30  (4 min)
+  A          FORK2HZ: med    3.8  p90    6.5  max    8.6  n=60  (6 min)
+  A            NTP10: med    5.1  p90    5.9  max    6.4  n=45  (5 min)
+  A            NTP50: med    4.7  p90    5.3  max    7.9  n=45  (5 min)
+  A           NTP200: med    4.2  p90    4.8  max    4.9  n=45  (5 min)
+  A          NTP1000: med    4.5  p90    6.5  max    7.3  n=45  (5 min)
+  A      DRAM_NOWARM: med  103.8  p90  120.0  max  147.8  n=60  (6 min)
+  A raw per-pulse per phase (settle 2 min skipped):
+  A         SETTLE: n=93 mean +0.0 sd 9.5 robust 11.9 p90 16 p99 21 max 21 >100ns 0
+  A        FORK2HZ: n=185 mean +0.6 sd 9.7 robust 10.4 p90 14 p99 23 max 24 >100ns 0
+  A          NTP10: n=144 mean -3.1 sd 10.3 robust 11.9 p90 15 p99 23 max 30 >100ns 0
+  A          NTP50: n=141 mean -1.8 sd 9.1 robust 10.4 p90 15 p99 18 max 22 >100ns 0
+  A         NTP200: n=139 mean -1.3 sd 8.3 robust 10.4 p90 13 p99 17 max 18 >100ns 0
+  A        NTP1000: n=142 mean +0.3 sd 10.0 robust 11.9 p90 16 p99 21 max 30 >100ns 0
+  A    DRAM_NOWARM: n=190 mean +14.7 sd 223.8 robust 169.8 p90 415 p99 674 max 903 >100ns 101
+2026-09-07T19:26:24 ALL_DONE_BATCH2

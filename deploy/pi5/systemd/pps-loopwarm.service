@@ -1,0 +1,14 @@
+[Unit]
+Description=PPS cache-warmer (GPIO17 loopback -> warms rp1 GPIO IRQ path on CPU2 before each PPS)
+Wants=pps-irq-pin.service
+After=pps-irq-pin.service chronyd.service multi-user.target
+StartLimitIntervalSec=0
+
+[Service]
+ExecStartPre=/bin/bash -c "for i in $(seq 30); do [ -e /dev/gpiochip15 ] && grep -q pps@1b /proc/interrupts && exit 0; sleep 1; done; exit 0"
+ExecStart=/usr/local/bin/loopwarm
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

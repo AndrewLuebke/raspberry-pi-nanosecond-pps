@@ -1,0 +1,52 @@
+  CFG 21:#hwtimestamp eth0  # off for the serving-ceiling test 2026-09-08
+2026-09-08T00:44:58 HWTS_OFF
+  UDP0 InDatagrams=InDatagrams InErrors=InErrors RcvbufErrors=RcvbufErrors SndbufErrors=SndbufErrors
+InDatagrams=85998027 InErrors=12245655 RcvbufErrors=12245655 SndbufErrors=46806
+2026-09-08T00:44:58 SETTLE_start
+2026-09-08T00:49:58 SETTLE_end
+2026-09-08T00:49:59 NTP100000_start
+  CPU100000 chronyd cpu (last 10 s): 74.0% | load 1.20 0.77 0.90
+ntpflood: host=192.168.1.18 rate=100000/s secs=240 threads=4 sent=23999998 replies=23999257 (100.0%) achieved=100000/s
+2026-09-08T00:53:59 NTP100000_end
+  UDP100000 before: InDatagrams=InDatagrams InErrors=InErrors RcvbufErrors=RcvbufErrors SndbufErrors=SndbufErrors
+InDatagrams=85998644 InErrors=12245655 RcvbufErrors=12245655 SndbufErrors=46806 | after: InDatagrams=InDatagrams InErrors=InErrors RcvbufErrors=RcvbufErrors SndbufErrors=SndbufErrors
+InDatagrams=109998419 InErrors=12246321 RcvbufErrors=12246321 SndbufErrors=46881
+2026-09-08T00:57:00 NTP200000_start
+  CPU200000 chronyd cpu (last 10 s): 100.0% | load 3.61 1.89 1.26
+ntpflood: host=192.168.1.18 rate=200000/s secs=240 threads=4 sent=47999992 replies=36420176 (75.9%) achieved=200000/s
+2026-09-08T01:01:00 NTP200000_end
+  UDP200000 before: InDatagrams=InDatagrams InErrors=InErrors RcvbufErrors=RcvbufErrors SndbufErrors=SndbufErrors
+InDatagrams=109998735 InErrors=12246321 RcvbufErrors=12246321 SndbufErrors=46881 | after: InDatagrams=InDatagrams InErrors=InErrors RcvbufErrors=RcvbufErrors SndbufErrors=SndbufErrors
+InDatagrams=146444431 InErrors=22012547 RcvbufErrors=22012547 SndbufErrors=72006
+2026-09-08T01:04:01 NTP300000_start
+  CPU300000 chronyd cpu (last 10 s): 100.0% | load 1.87 1.57 1.34
+ntpflood: host=192.168.1.18 rate=300000/s secs=240 threads=4 sent=71920287 replies=36956651 (51.4%) achieved=299668/s
+2026-09-08T01:08:01 NTP300000_end
+  UDP300000 before: InDatagrams=InDatagrams InErrors=InErrors RcvbufErrors=RcvbufErrors SndbufErrors=SndbufErrors
+InDatagrams=146444750 InErrors=22012547 RcvbufErrors=22012547 SndbufErrors=72006 | after: InDatagrams=InDatagrams InErrors=InErrors RcvbufErrors=RcvbufErrors SndbufErrors=SndbufErrors
+InDatagrams=183479613 InErrors=30152774 RcvbufErrors=30152774 SndbufErrors=148975
+2026-09-08T01:11:01 NTP400000_start
+  CPU400000 chronyd cpu (last 10 s): 100.0% | load 2.81 1.79 1.45
+ntpflood: host=192.168.1.18 rate=400000/s secs=240 threads=4 sent=93507624 replies=36056360 (38.6%) achieved=389615/s
+2026-09-08T01:15:02 NTP400000_end
+  UDP400000 before: InDatagrams=InDatagrams InErrors=InErrors RcvbufErrors=RcvbufErrors SndbufErrors=SndbufErrors
+InDatagrams=183479949 InErrors=30152774 RcvbufErrors=30152774 SndbufErrors=148975 | after: InDatagrams=InDatagrams InErrors=InErrors RcvbufErrors=RcvbufErrors SndbufErrors=SndbufErrors
+InDatagrams=219573755 InErrors=58798965 RcvbufErrors=58798965 SndbufErrors=186132
+  RESTORE 21:hwtimestamp eth0
+  RESTORE Sep 08 02:18:02 ChronyPi chronyd[824601]: Enabled HW timestamping on eth0
+  RESTORE active
+  RESTORE #? PPS 0 2 0 - +0ns[ +0ns] +/- 0ns
+2026-09-08T01:18:08 HWTS_ON
+  A per-phase summary (first 120 s of each phase skipped as settle):
+  A           SETTLE: med    4.3  p90    5.4  max    5.9  n=45  (5 min)
+  A        NTP100000: med    5.1  p90   12.9  max   14.4  n=29  (4 min)
+  A        NTP200000: med    4.3  p90    4.4  max    4.6  n=31  (4 min)
+  A        NTP300000: med    4.0  p90    4.1  max    4.2  n=30  (4 min)
+  A        NTP400000: med    5.5  p90    5.7  max    6.1  n=30  (4 min)
+  A raw per-pulse per phase (settle 2 min skipped):
+  A       SETTLE: n=133 mean -0.1 sd 9.1 robust 10.4 p90 15 p99 23 max 25 >100ns 0
+  A    NTP100000: n=85 mean +0.9 sd 13.5 robust 8.9 p90 15 p99 54 max 67 >100ns 0
+  A    NTP200000: n=85 mean +0.5 sd 14.7 robust 7.4 p90 15 p99 37 max 110 >100ns 1
+  A    NTP300000: n=84 mean -0.5 sd 12.5 robust 7.4 p90 14 p99 50 max 58 >100ns 0
+  A    NTP400000: n=86 mean -0.6 sd 18.4 robust 7.4 p90 13 p99 58 max 139 >100ns 1
+2026-09-08T01:18:11 ALL_DONE_NTPMAX2

@@ -44,3 +44,51 @@ Gotchas learned the hard way:
    `reboot "0 tryboot"` — any reset reverts. Promote via `config.txt` when proven.
 3. `use_early=1` via modprobe.d; steering needs nothing (in-kernel default CPU 2).
 4. Verify: `/proc/interrupts` leaf row accrues ONLY on the steered CPU from boot.
+
+---
+
+# Pi 5 (BCM2712 + RP1): entry-stamp kernel
+
+Branch `rpi-7.3.y` (snapshot of 2026-09-01, 7.3.0-rc1; PREEMPT_RT is native there and the
+`pps-gpio` hardirq/thread split is in-tree). Three patches, applied in this order:
+
+1. `pps-timing-patches-7.3rc1.diff` — the Pi 4 entry-stamp (pinctrl-bcm2835) + the
+   `pps-gpio` `use_early` consumer with its 50 µs staleness guard and delta statistics.
+   On a Pi 5 the bcm2835 half is inert; the consumer is what matters.
+2. `pps-timing-patches-7.3rc1-rp1-entry-stamp-v2.diff` — `drivers/pinctrl/pinctrl-rp1.c`:
+   take `ktime_get_real_ts64()` and the arch counter at the **first line** of
+   `rp1_gpio_irq_handler`, before `chained_irq_enter()` and before the PCIe
+   `readl(PCIE_INTS)` (≈990 ns round trip, 1–3 % tail to 1.5–2 µs). When bank 0 shows
+   GPIO18 or GPIO27, publish the stamp through the same globals the bcm2835 patch defines
+   (both pinctrl drivers are built in; only one is bound per board), publish the entry
+   counter per pin (`rp1_pps_entry_cnt[2]` / `rp1_pps_entry_seqp[2]`, consumed by
+   `modules/pps_warm`), keep per-pin round-trip statistics in debugfs
+   `rp1_pps_readl_stats`, and optionally pulse a spare bank-0 pin right after the stamp
+   (`pinctrl_rp1.rp1_pps_debug_gpio=22`, writable at runtime) for the Pi-4-as-counter
+   calibration. `…-rp1-entry-stamp.diff` (v1) is the first, single-histogram version.
+3. `modules/pps_warm/` — out-of-tree; needs (2) for its exported symbols.
+
+```sh
+# on the build host (aarch64-linux-gnu-gcc 14.2, same major as the target's build)
+cd linux-rpi-7.3.y && patch -p1 < pps-timing-patches-7.3rc1.diff \
+  && patch -p1 < pps-timing-patches-7.3rc1-rp1-entry-stamp-v2.diff
+export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION="-rp1ts2+"
+make olddefconfig && make -j$(nproc) Image modules
+make modules_install INSTALL_MOD_PATH=./stage
+make M=$PWD/../modules/pps_warm modules          # pps_warm.ko, vermagic must match
+scripts/dtc/dtc -@ -I dts -O dtb -o pps-warm.dtbo ../modules/pps_warm/pps-warm-overlay.dts
+```
+
+Deploy by tryboot (any reset returns to the previous kernel): copy `Image` to
+`/boot/firmware/kernel-<name>.img`, the module tree to `/lib/modules/<version>/`,
+`pps_warm.ko` to `…/extra/` + `depmod`, `pps-warm.dtbo` to `/boot/firmware/overlays/`;
+point `tryboot.txt`'s `kernel=` at the image; `sudo reboot "0 tryboot"`; verify
+(`deploy/pi5/` and `tools/pi5-experiments/post-reboot-check.sh`); promote with
+`deploy/pi5/promote-rp1ts2.sh`. Config: seed from the target's known-good config and run
+`olddefconfig` (the `.config` that built the running kernel lives in the build tree; keep it).
+A rebuild after editing only the patched files is incremental and takes well under a minute.
+
+Gotchas: `arch_timer_get_rate()` is not exported to modules — use `arch_timer_get_cntfrq()`;
+`hrtimer_setup()` replaces `hrtimer_init()` on this branch; IRQ threads carry
+`PF_NO_SETAFFINITY` (you cannot move them with `taskset`); `/proc/config.gz` is off in this
+config, so keep the build tree's `.config`.

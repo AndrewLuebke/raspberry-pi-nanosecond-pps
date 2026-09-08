@@ -1,0 +1,64 @@
+  PREP Processing triggers for libc-bin (2.41-12+rpt1+deb13u3) ...
+  PREP /usr/bin/iperf3
+  PREP /usr/bin/stress-ng
+  PREP 1073741824
+  PREP temp=48.8'C
+2026-09-07T19:28:41 SETTLE_start
+2026-09-07T19:33:41 SETTLE_end
+2026-09-07T19:33:41 STORM_CPU1_start
+2026-09-07T19:39:41 STORM_CPU1_end
+2026-09-07T19:43:41 STORM_CPU3_start
+2026-09-07T19:49:42 STORM_CPU3_end
+2026-09-07T19:53:42 DRAM_READ_start
+2026-09-07T19:59:42 DRAM_READ_end
+2026-09-07T20:03:42 SD_WRITE_start
+2026-09-07T20:09:42 SD_WRITE_end
+2026-09-07T20:13:42 IPERF_start
+  IPERF sum_received 941 Mbit/s
+2026-09-07T20:19:46 IPERF_end
+2026-09-07T20:23:46 BURN_start
+2026-09-07T20:33:46 BURN_end
+  BURNTEMP temp=56.0'C temp=59.8'C temp=59.8'C temp=60.4'C temp=59.8'C temp=62.0'C temp=60.9'C temp=61.5'C temp=61.5'C temp=62.0'C 
+2026-09-07T20:37:46 SNG_fork_start
+2026-09-07T20:42:46 SNG_fork_end
+2026-09-07T20:46:46 SNG_exec_start
+2026-09-07T20:51:47 SNG_exec_end
+2026-09-07T20:55:47 SNG_vm64m_start
+2026-09-07T21:00:47 SNG_vm64m_end
+2026-09-07T21:04:47 SNG_vm1m_start
+2026-09-07T21:09:47 SNG_vm1m_end
+2026-09-07T21:13:47 SNG_cache_start
+2026-09-07T21:18:47 SNG_cache_end
+2026-09-07T21:22:47 SNG_icache_start
+2026-09-07T21:27:47 SNG_icache_end
+  FINAL final: loopwarm=active fires=12722 temp=temp=51.0'C
+  FINAL #* PPS 0 2 377 4 -2ns[ +1ns] +/- 49ns
+  A per-phase summary (first 120 s of each phase skipped as settle):
+  A           SETTLE: med    4.7  p90    5.0  max    6.0  n=45  (5 min)
+  A       STORM_CPU1: med    4.6  p90    4.7  max    4.8  n=60  (6 min)
+  A       STORM_CPU3: med   10.5  p90   11.2  max   11.6  n=60  (6 min)
+  A        DRAM_READ: med   13.3  p90   15.6  max   17.5  n=60  (6 min)
+  A         SD_WRITE: med    4.9  p90    5.7  max    6.8  n=60  (6 min)
+  A            IPERF: med    8.8  p90   10.9  max   12.7  n=61  (6 min)
+  A             BURN: med    4.7  p90    6.0  max    7.9  n=120  (10 min)
+  A         SNG_fork: med    4.9  p90    5.9  max    7.3  n=45  (5 min)
+  A         SNG_exec: med    5.3  p90    7.1  max    8.1  n=45  (5 min)
+  A        SNG_vm64m: med   14.9  p90   26.2  max   29.1  n=45  (5 min)
+  A         SNG_vm1m: med    5.9  p90    7.8  max    9.2  n=45  (5 min)
+  A        SNG_cache: med  108.6  p90  116.2  max  133.0  n=45  (5 min)
+  A       SNG_icache: med   36.5  p90   47.1  max   63.4  n=45  (5 min)
+  A raw per-pulse per phase (settle 2 min skipped):
+  A         SETTLE: n=141 mean +0.7 sd 9.6 robust 10.4 p90 15 p99 22 max 39 >100ns 0
+  A     STORM_CPU1: n=182 mean -2.0 sd 8.8 robust 10.4 p90 13 p99 28 max 32 >100ns 0
+  A     STORM_CPU3: n=187 mean +1.7 sd 20.9 robust 22.2 p90 28 p99 36 max 158 >100ns 1
+  A      DRAM_READ: n=187 mean -3.8 sd 33.9 robust 14.8 p90 49 p99 129 max 214 >100ns 5
+  A       SD_WRITE: n=182 mean -1.6 sd 10.0 robust 12.6 p90 15 p99 23 max 27 >100ns 0
+  A          IPERF: n=193 mean -8.8 sd 72.8 robust 13.3 p90 22 p99 157 max 778 >100ns 7
+  A           BURN: n=375 mean -0.9 sd 10.0 robust 11.9 p90 15 p99 26 max 44 >100ns 0
+  A       SNG_fork: n=144 mean +1.4 sd 9.8 robust 11.1 p90 15 p99 21 max 22 >100ns 0
+  A       SNG_exec: n=145 mean -4.2 sd 28.3 robust 11.9 p90 19 p99 174 max 190 >100ns 3
+  A      SNG_vm64m: n=135 mean -20.1 sd 166.0 robust 14.8 p90 32 p99 448 max 1539 >100ns 8
+  A       SNG_vm1m: n=147 mean -1.7 sd 28.0 robust 13.3 p90 20 p99 32 max 307 >100ns 1
+  A      SNG_cache: n=132 mean +108.7 sd 303.2 robust 135.7 p90 344 p99 1522 max 1830 >100ns 60
+  A     SNG_icache: n=147 mean -5.4 sd 78.9 robust 26.7 p90 89 p99 281 max 320 >100ns 13
+2026-09-07T21:31:51 ALL_DONE_BATCH3

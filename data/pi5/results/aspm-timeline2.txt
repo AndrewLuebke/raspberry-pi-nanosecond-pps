@@ -1,0 +1,12 @@
+TELNET_OFF_start 2026-09-05T23:59:21
+telnet_stream: 456811 bytes, ~8259 lines over 360s
+TELNET_OFF_end 2026-09-06T00:05:23
+l1_aspm=1
+		LnkCtl:	ASPM L1 Enabled; RCB 64 bytes, LnkDisable- CommClk+
+ASPM_ON 2026-09-06T00:09:23
+IDLE_ON_start 2026-09-06T00:09:23
+IDLE_ON_end 2026-09-06T00:14:23
+TELNET_ON_start 2026-09-06T00:14:23
+telnet_stream: 456811 bytes, ~8259 lines over 360s
+TELNET_ON_end 2026-09-06T00:20:25
+DONE_PART2 2026-09-06T00:24:25

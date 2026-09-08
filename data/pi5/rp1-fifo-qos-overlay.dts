@@ -1,0 +1,14 @@
+/dts-v1/;
+/plugin/;
+
+/* RP1 root complex (pcie@1000120000): use the FIFO-fill-level QoS map at max priority for all
+   quartiles instead of the VDM message map. Experiment 2026-09-06 (Pi 5 C1 inbound-QoS erratum). */
+/ {
+    compatible = "brcm,bcm2712";
+    fragment@0 {
+        target-path = "/axi/pcie@1000120000";
+        __overlay__ {
+            brcm,fifo-qos-map = [0f 0f 0f 0f];
+        };
+    };
+};

@@ -1,0 +1,105 @@
+--- a/drivers/pinctrl/pinctrl-rp1.c
++++ b/drivers/pinctrl/pinctrl-rp1.c
+@@ -800,8 +800,66 @@
+ 	.can_sleep = false,
+ };
+ 
++/*
++ * PPS entry-stamp experiment (Pi 5 / RP1), 2026-09-07.  Mirror of the
++ * pinctrl-bcm2835 GPEDS entry-stamp: take the software timestamp at chained-
++ * handler entry, BEFORE the PCIe round trip that reads the io_bank0 interrupt
++ * status, and publish it for pps-gpio (use_early) when GPIO18 or GPIO27 has an
++ * event latched.  The globals are the ones pinctrl-bcm2835 defines (built-in
++ * on the v8 kernel; only one pinctrl driver is bound per board), so pps-gpio
++ * needs no change.  Also keeps statistics of the status-read round trip
++ * (arch counter ticks, 54 MHz) in debugfs: rp1_pps/readl_stats.
++ */
++#include <linux/debugfs.h>
++#include <linux/seq_file.h>
++#include <linux/math64.h>
++#include <clocksource/arm_arch_timer.h>
++
++extern struct timespec64 bcm2835_pps_entry_ts;
++extern u64 bcm2835_pps_entry_seq;
++
++static u64 rp1_rd_n, rp1_rd_sum, rp1_rd_sumsq, rp1_rd_max, rp1_rd_min = ~0ULL;
++static u64 rp1_rd_hist[8];	/* ticks: <32, <64, <96, <128, <192, <256, <512, >= */
++
++static int rp1_pps_readl_stats_show(struct seq_file *m, void *v)
++{
++	u64 n = rp1_rd_n, rate = arch_timer_get_rate();
++
++	seq_printf(m, "n=%llu sum=%llu sumsq=%llu min=%llu max=%llu ticks (rate %llu Hz)\n",
++		   n, rp1_rd_sum, rp1_rd_sumsq, n ? rp1_rd_min : 0, rp1_rd_max, rate);
++	seq_printf(m, "mean_ns=%llu min_ns=%llu max_ns=%llu\n",
++		   n && rate ? div64_u64(rp1_rd_sum * NSEC_PER_SEC, n * rate) : 0,
++		   n && rate ? div64_u64(rp1_rd_min * NSEC_PER_SEC, rate) : 0,
++		   rate ? div64_u64(rp1_rd_max * NSEC_PER_SEC, rate) : 0);
++	seq_printf(m, "hist_ticks <32:%llu <64:%llu <96:%llu <128:%llu <192:%llu <256:%llu <512:%llu >=512:%llu\n",
++		   rp1_rd_hist[0], rp1_rd_hist[1], rp1_rd_hist[2], rp1_rd_hist[3],
++		   rp1_rd_hist[4], rp1_rd_hist[5], rp1_rd_hist[6], rp1_rd_hist[7]);
++	return 0;
++}
++DEFINE_SHOW_ATTRIBUTE(rp1_pps_readl_stats);
++
++static void rp1_pps_readl_account(u64 d)
++{
++	static const u64 edges[7] = { 32, 64, 96, 128, 192, 256, 512 };
++	int i;
++
++	rp1_rd_n++;
++	rp1_rd_sum += d;
++	rp1_rd_sumsq += d * d;
++	if (d < rp1_rd_min)
++		rp1_rd_min = d;
++	if (d > rp1_rd_max)
++		rp1_rd_max = d;
++	for (i = 0; i < 7; i++)
++		if (d < edges[i])
++			break;
++	rp1_rd_hist[i]++;
++}
++
+ static void rp1_gpio_irq_handler(struct irq_desc *desc)
+ {
++	struct timespec64 entry_ts;
++	u64 t0, t1;
+ 	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
+ 	struct rp1_pinctrl *pc = gpiochip_get_data(chip);
+ 	struct irq_chip *host_chip = irq_desc_get_chip(desc);
+@@ -810,6 +868,9 @@
+ 	unsigned long ints;
+ 	int b;
+ 
++	/* PPS experiment: earliest software stamp, before parent ack and the PCIe status read */
++	ktime_get_real_ts64(&entry_ts);
++
+ 	if (pc->irq[0] == irq)
+ 		bank = &rp1_iobanks[0];
+ 	else if (pc->irq[1] == irq)
+@@ -819,7 +880,14 @@
+ 
+ 	chained_irq_enter(host_chip, desc);
+ 
++	t0 = arch_timer_read_counter();
+ 	ints = readl(pc->gpio_base + bank->ints_offset);
++	t1 = arch_timer_read_counter();
++	if (bank == &rp1_iobanks[0] && (ints & (BIT(18) | BIT(27)))) {
++		bcm2835_pps_entry_ts = entry_ts;
++		bcm2835_pps_entry_seq++;
++		rp1_pps_readl_account(t1 - t0);
++	}
+ 	for_each_set_bit(b, &ints, 32) {
+ 		struct rp1_pin_info *pin = rp1_get_pin(chip, bank->min_gpio + b);
+ 
+@@ -1698,6 +1766,10 @@
+ 	pc->gpio_range.gc = &pc->gpio_chip;
+ 	pinctrl_add_gpio_range(pc->pctl_dev, &pc->gpio_range);
+ 
++	/* PPS experiment: status-read round-trip statistics */
++	debugfs_create_file("rp1_pps_readl_stats", 0444, NULL, NULL,
++			    &rp1_pps_readl_stats_fops);
++
+ 	return 0;
+ 
+ out_iounmap:

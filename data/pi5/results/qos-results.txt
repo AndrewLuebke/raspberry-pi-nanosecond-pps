@@ -1,0 +1,24 @@
+2026-09-06T23:11:37 DOWN
+2026-09-06T23:12:54 UP
+  CHK kernel=7.3.0-rc1-v8-rt-v8-rt+ boot=2026-09-07 00:12:07
+  CHK DT fifo-qos-map:  0f 0f 0f 0f
+  CHK AXI_INTF_CTRL=0x0000004f CTRL_1=0x00000000 (VDM bit5=0) TC_QOS_MAP0=0x0000ffff MAP7=0x0000ffff
+  CHK irqs: 165:2 167:2  pps=pps1 l1_aspm=0 temp=temp=51.0'C
+  CHK svc: chronyd=active loopwarm=active pin=active qpps=active
+  CHK chrony: #* PPS 0 2 377 3 +2ns[ +2ns] +/- 26ns
+2026-09-06T23:14:04 VERIFIED
+2026-09-06T23:14:04 IDLEQ_start
+2026-09-06T23:24:04 IDLEQ_end
+2026-09-06T23:24:04 DRAMQ_start
+2026-09-06T23:30:05 DRAMQ_end
+2026-09-06T23:34:05 FORKSTORMQ_start
+2026-09-06T23:40:05 FORKSTORMQ_end
+  A per-phase summary (first 120 s of each phase skipped as settle):
+  A            IDLEQ: med    8.1  p90    9.4  max   10.1  n=120  (10 min)
+  A            DRAMQ: med   65.8  p90   71.3  max   79.3  n=60  (6 min)
+  A       FORKSTORMQ: med   66.0  p90   78.2  max  110.7  n=61  (6 min)
+  A raw per-pulse per phase (settle 2 min skipped):
+  A         IDLEQ: n=371 mean -1.3 sd 28.6 robust 13.3 p90 28 p99 117 max 299 >100ns 9
+  A         DRAMQ: n=173 mean -1.8 sd 120.8 robust 86.0 p90 199 p99 395 max 448 >100ns 46
+  A    FORKSTORMQ: n=183 mean -11.8 sd 150.1 robust 130.5 p90 206 p99 428 max 848 >100ns 76
+2026-09-06T23:44:07 ALL_DONE_QOS
