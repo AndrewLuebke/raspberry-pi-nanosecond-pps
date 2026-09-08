@@ -49,7 +49,7 @@ and what the numbers do and do not mean.
 ## Hardware and configuration
 
 Raspberry Pi 5 8 GB Rev 1.0 (BCM2712 **C1** stepping, RP1 on PCIe 2.0 x4), u-blox ZED-F9T
-PPS on GPIO18, and the same crystal surgery as the Pi 4: a GPS-conditioned OCXO injected in
+PPS on GPIO18, and the same crystal surgery as the Pi 4: a free-running OCXO injected in
 place of the board's crystals (the SoC's 54 MHz, the RP1's 50 MHz, the PHY's 25 MHz), so the
 counter being disciplined is oscillator-grade and the two clock domains are frequency-locked.
 Bare board in room air. Everything in this document is software removing what Linux had put
@@ -176,12 +176,11 @@ throughout.
 - Chrony's 3–5 ns is a filtered residual: the PPS refclock filters the last 16 one-hertz
   pulses and submits a value every 4 s (`poll 2`), and the `Std dev'n` is over the
   regression's retained points (up to 64, ≈ 4 min); `nohz_full=2,3` is carried from the Pi 4 configuration where it measured as
-  a slight tail regression, and has not been re-measured on the Pi 5. Inside it sit the 54 MHz arch timer's 18.5 ns tick — the OCXO is
-  frequency-disciplined by its own GPS loop, not phase-locked to the receiver's edge, so the
-  pulse's phase against the tick walks at about a nanosecond per second per ppb of
-  frequency offset and the quantization term is a slow sawtooth of up to ±9.3 ns, ≤ 5.3 ns
-  RMS over an hour rather than white noise per pulse (the walk itself has not been measured;
-  a histogram of the stamp's sub-tick phase would show it) — the
+  a slight tail regression, and has not been re-measured on the Pi 5. Inside it sit the 54 MHz arch timer's 18.5 ns tick — the OCXO is free-running, tens
+  of ppb from GPS with chrony correcting the rate in software, so the pulse's phase against
+  the tick walks by roughly a tick every second or two and the quantization term is
+  effectively randomized from pulse to pulse, up to 5.3 ns RMS (the walk itself has not been
+  measured; a histogram of the stamp's sub-tick phase would show it) — the
   F9T's few-ns pulse-placement sawtooth (uncorrected on this box), and a couple of
   nanoseconds of warmed MSI path. The raw per-pulse core, 7.4 ns robust, is the number to
   compare between boards; the Pi 4 shows the same 7.4 ns. The Pi 5's lower chrony number is

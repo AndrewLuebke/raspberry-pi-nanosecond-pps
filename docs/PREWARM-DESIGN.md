@@ -3,7 +3,7 @@
 ## System under discussion (established facts, measured on the real box)
 
 - Raspberry Pi 4B (BCM2711: 4x Cortex-A72 @1.5GHz, GIC-400/GICv2, arch timer
-  54 MHz, OCXO-disciplined), PREEMPT_RT downstream kernel `7.1.10-v8-rt-gpeds+`,
+  54 MHz, derived from a free-running OCXO), PREEMPT_RT downstream kernel `7.1.10-v8-rt-gpeds+`,
   idle=poll, performance governor, force_turbo=1 (core clock pinned 500 MHz).
 - Production chrony stratum-1. PPS (GPS pulse-per-second) on GPIO18 (bank 0
   = GIC SPI 113, Linux hwirq 145, level-high at the GIC). The kernel carries a

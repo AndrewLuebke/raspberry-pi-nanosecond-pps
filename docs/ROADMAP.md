@@ -31,6 +31,9 @@
       estimate). Wire GPIO22 (pulsed at handler entry) to a Pi 4 GPIO and pair the stamps
       on the Pi 4's clock (`tools/tic-pair.py`); split the posted-write flight with the
       measured 990 ns read round trip. Then set the PPS `offset` / QPPS `DELIVERY_NS`.
+- [ ] **OCXO conditioning**: both OCXOs are free-running today (chrony absorbs the rate in
+      software). A 16-bit AD5693R DAC on one OCXO's EFC, driven by a slow PPS-error loop,
+      is planned: holdover and the long end of the ADEV curve, not the per-pulse capture.
 - [ ] **Pi 5 enclosure + SHT35**: the day-to-day 4–8 ns chrony floor is thermal wander of
       the OCXO in room air (a +13 °C SoC burn moved nothing, which argues against die temperature without isolating every board gradient). Box it,
       log the box temperature (`deploy/pi5/sht35.py`), publish the temperature envelope.

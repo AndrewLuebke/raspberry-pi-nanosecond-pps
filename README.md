@@ -1,8 +1,9 @@
 # raspberry-pi-nanosecond-pps
 
 **Nanosecond-class GPS-PPS capture jitter on Raspberry Pi 4 and Pi 5, in software, on a
-pair of lab stratum-1 chrony servers.** Not stock boards: each has a GPS-conditioned OCXO
-grafted in place of its crystals (so the counter being disciplined is oscillator-grade),
+pair of lab stratum-1 chrony servers.** Not stock boards: each has a free-running OCXO
+grafted in place of its crystals (so the counter being disciplined is oscillator-grade;
+electronic conditioning of the OCXOs is planned, not yet built),
 runs a PREEMPT_RT kernel with this repo's patches, isolated cores, and a GPIO loopback
 warm edge. Both timestamp the same physical u-blox ZED-F9T pulse. On one calm night the
 raw per-pulse scatter of both was 7.4 ns robust SD; the Pi 4's historical ladder, in a
@@ -67,10 +68,10 @@ logged), and an enclosure is the next step before any floor is quoted.
 **Pi 4:** the original recipe below; `deploy/promote.sh` and `deploy/pps-warm-watchdog.*`.
 
 Honest framing for both: the 54 MHz arch timer ticks every 18.5 ns, and because the OCXO is
-frequency-disciplined rather than phase-locked to the receiver's edge, the pulse's phase
-against that tick walks slowly, so quantization enters as a slow sawtooth of up to ±9.3 ns
-(≤ 5.3 ns RMS over an hour, not white per pulse); the receiver adds a few ns of pulse-
-placement sawtooth; chrony's filter averages both. The raw per-pulse distribution is
+free-running (tens of ppb from GPS, corrected by chrony in software), the pulse's phase
+against that tick walks by roughly a tick every second or two, so quantization is effectively
+randomized from pulse to pulse and enters as up to 5.3 ns RMS; the receiver adds a few ns of
+pulse-placement sawtooth; chrony's filter averages both. The raw per-pulse distribution is
 published next to every chrony number for that reason.
 
 ## Raspberry Pi 4 (BCM2711): the original write-up
@@ -91,7 +92,7 @@ OCXO-grafted RT hardware over one weekend (2026-08-29/30) on a lab stratum-1 NTP
 | + qErr correction + delivery-latency constant (QPPS) | 13.1 ns | **3 ns, RMS 1–2 ns** |
 
 Hardware context: Pi 4B, PREEMPT_RT downstream kernel, u-blox ZED-F9T PPS on GPIO18,
-and a GPS-conditioned OCXO injected as the SoC's 54 MHz reference (so the counter being
+and a free-running OCXO injected as the SoC's 54 MHz reference (so the counter being
 disciplined is itself oscillator-grade). The software here is what removed the ~33×
 of Linux overhead sitting between that hardware and its potential.
 
