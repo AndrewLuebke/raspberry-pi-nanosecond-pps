@@ -158,3 +158,9 @@ is a loopback bound (≈ 850 ± 90 ns); the Pi 5's is paired against the Pi 4's 
 the next measurement (reverse pairing or the Pico TIC), and until then the two boards' NTP
 view of each other (the Pi 5 reads the Pi 4 ~1.6 µs ahead after the +1.8 µs move) is a
 software-timestamp asymmetry number, not a clock disagreement.
+
+### License
+
+GPL-2.0 (`LICENSE`). The kernel patches under `kernel/` are derived from Linux and carry its licence by
+necessity; the tools, module, daemon and documentation are released under the same terms to keep one
+licence for the whole notebook.
