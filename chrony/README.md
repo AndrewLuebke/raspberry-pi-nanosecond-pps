@@ -26,5 +26,10 @@ sudo install -m 755 chronyc /usr/local/bin/chronyc          # display patch only
 sudo install -m 755 chronyd /usr/local/sbin/chronyd && sudo systemctl restart chronyd
 ```
 
-Anything that parses `chronyc` output and assumes an `ns` suffix has to accept
-`ps` too; `deploy/pi5/pps-soaklog.sh` normalises it back to `x.xxxns`.
+Anything that parses `chronyc` human output has to be checked before this patch goes on a
+box. Two consumers in this project: `deploy/pi5/pps-soaklog.sh` (normalises a `ps` suffix back
+to `x.xxxns`) and `deploy/pps-warm-watchdog.sh` on the Pi 4, whose lock test read the "System
+time" line's fourth field as seconds; with "118 ps" there it read 118, decided chrony was not
+locked, disarmed the pre-warm interrupt, and the Pi 4 ran at 160 ns jitter for 17 hours before
+the morning ladder showed it. It now uses `chronyc -c tracking`, which stays numeric. Prefer CSV
+mode for any script.

@@ -269,6 +269,17 @@ Across all four takes the natural loss rate on the LAN was zero; the machinery i
 the day it is not.
 
 
+## Pi 4 regression from the chronyc display patch (09-08 15:41 to 09-09 09:13 Pacific)
+
+The morning ladder showed the Pi 4 at 155–212 ns robust per hour, nearly every pulse over
+100 ns, sourcestats Std Dev 54 ns: the pre-warm interrupt was disarmed. Its watchdog gates
+arming on a `chronyc tracking` parse that read the "System time" line's fourth field as
+seconds; the ps/ppt chronyc installed at 15:41 prints `118 ps` there, the test read 118,
+decided chrony was unlocked, and disarmed the warmer. Fixed 09:13 by moving the test to
+`chronyc -c tracking` (CSV stays numeric); the warmer re-armed within a minute. Lesson recorded
+in `chrony/README.md`: enumerate every script that parses chronyc before changing its output,
+and prefer CSV mode in scripts.
+
 ## rc2 kernel rebuild, tryboot and promotion (09-08, Pacific 18:43–19:45)
 
 `rpi-7.3.y` moved to rc2 (`f6456d3b4`); both patch sets applied without offsets and a full

@@ -9,11 +9,12 @@ CHRONYC=/usr/local/bin/chronyc
 log() { logger -t pps-warm-watchdog "$*"; }
 
 locked() {
-	$CHRONYC tracking 2>/dev/null | awk '
-		/^Reference ID/ { ok1 = /PPS/ }
-		/^Stratum/      { ok2 = ($3 == 1) }
-		/^System time/  { ok3 = ($4 < 0.00001) }
-		END { exit !(ok1 && ok2 && ok3) }'
+	# CSV mode stays numeric whatever the human display does (the ps/ppt chronyc of 2026-09-08 prints
+	# "118 ps" on the System time line and silently broke the old field-4-in-seconds test for 17 h).
+	# fields: refid hex, refid name, stratum, ref time, system time offset (s), ...
+	$CHRONYC -c tracking 2>/dev/null | awk -F, '{
+		ok1 = ($2 ~ /PPS/); ok2 = ($3 == 1); x = $5 + 0; if (x < 0) x = -x; ok3 = (x < 0.00001)
+		exit !(ok1 && ok2 && ok3) }'
 }
 
 leaf_count() { awk '/pps@12/ {print $2+$3+$4+$5}' /proc/interrupts; }
