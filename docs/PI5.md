@@ -147,7 +147,10 @@ path the instrumentation reported. That is all the NTP number is used for: the r
 −3.7 µs mixes network asymmetry, the Pi 4's own delay and the Pi 5's, and cannot be read as
 an error against GPS. The Pi 5's pin-to-entry delay (the MSI trip) was then measured
 directly (2026-09-08, `docs/MEASUREMENTS.md`, run 4): a spare pin pulsed at the first line
-of the handler on the v3 kernel, wired to the Pi 4, and paired against the Pi 4's stamp of
+of the handler on the v3 kernel (`pinctrl_rp1.rp1_pps_debug_gpio=23`; the wire is GPIO23,
+header pin 16, on both boards — verified 2026-09-09 by pulsing each candidate pin from the
+kernel and watching the Pi 4's inputs; the overlay's `debug-gpios = 22` belongs to the v2
+module pulse and is not connected), wired to the Pi 4, and paired against the Pi 4's stamp of
 the same GPS edge with `tools/tic-pair.py` arrives **2.44 µs** after the edge (robust SD
 136 ns), the in-kernel warmer loop reads 2.22 µs at the same time, and taking the posted
 write as half the 0.99 µs read round trip gives **1.8 ± 0.25 µs** — applied as the feeder's
