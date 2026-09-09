@@ -30,7 +30,7 @@
 - [x] **Pi 5 delivery constant** (2026-09-08): a spare pin pulsed at handler entry (v3
       kernel, `pinctrl_rp1.rp1_pps_debug_gpio`), wired to the Pi 4, paired on the Pi 4's
       clock (wiring as verified 2026-09-09 by pulsing each candidate pin: Pi 5 GPIO23 /
-      header pin 16 → Pi 4 GPIO23 / header pin 16; GPIO22 is not connected): 2.44 µs arrival, 1.8 ± 0.25 µs
+      header pin 16 → Pi 4 GPIO22 / header pin 15, `pps@16`; Pi 5 GPIO22 is not connected): 2.44 µs arrival, 1.8 ± 0.25 µs
       pin→entry after the write-flight split; `DELIVERY_NS=1800`, PPS `offset +1.8 µs`.
 - [ ] **Split the ±0.25 µs write flight** with the Pico TIC stamping the pulse pin's edge
       against its own timebase (needs the 25 MHz crystal transplant).
