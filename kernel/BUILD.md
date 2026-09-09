@@ -69,6 +69,12 @@ this order:
    `rp1_pps_readl_stats`, and optionally pulse a spare bank-0 pin right after the stamp
    (`pinctrl_rp1.rp1_pps_debug_gpio=22`, writable at runtime) for the Pi-4-as-counter
    calibration. `…-rp1-entry-stamp.diff` (v1) is the first, single-histogram version.
+   **v3** (`…-rp1-entry-stamp-v3.diff`, 2026-09-08) moves that calibration pulse to the handler's
+   first lines, before the parent ack and the PCIe status read, and fires it on every bank-0
+   interrupt while the parameter is set: the v2 pulse sat after the ~1 µs read and gated on the
+   GPIO18 bit, so the Pi-4 counter measured read plus write flight plus entry delay (3.39 µs)
+   instead of entry delay alone. Same module ABI as v2 (only a built-in driver changed), so the v2
+   module tree serves a v3 image.
 3. `modules/pps_warm/` — out-of-tree; needs (2) for its exported symbols.
 
 ```sh

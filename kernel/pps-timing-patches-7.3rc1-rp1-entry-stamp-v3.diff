@@ -1,0 +1,152 @@
+--- a/drivers/pinctrl/pinctrl-rp1.c
++++ b/drivers/pinctrl/pinctrl-rp1.c
+@@ -800,8 +800,88 @@
+ 	.can_sleep = false,
+ };
+ 
++/*
++ * PPS entry-stamp experiment v2 (Pi 5 / RP1), 2026-09-07.
++ * - Take the software timestamp (and the arch counter) at chained-handler
++ *   entry, BEFORE the PCIe round trip that reads io_bank0's interrupt status.
++ * - When bank 0 shows GPIO18 (GPS PPS) or GPIO27 (cache-warm edge), publish the
++ *   entry stamp for pps-gpio (use_early) through the globals pinctrl-bcm2835
++ *   defines (both drivers are built-in), and publish the entry counter per pin
++ *   for in-kernel loop-latency measurement (pps_warm.ko reads pin 27's).
++ * - Keep per-pin statistics of the status-read round trip (arch ticks) in
++ *   debugfs rp1_pps/readl_stats.
++ * - Optional (module param rp1_pps_debug_gpio >= 0, default off): pulse a spare
++ *   bank-0 pin right after the stamp, for an external counter (Pi 4) to time
++ *   pin-to-entry. The pin must be muxed as a RIO output by its owner.
++ */
++#include <linux/debugfs.h>
++#include <linux/seq_file.h>
++#include <linux/math64.h>
++#include <clocksource/arm_arch_timer.h>
++
++extern struct timespec64 bcm2835_pps_entry_ts;
++extern u64 bcm2835_pps_entry_seq;
++
++u64 rp1_pps_entry_cnt[2];		/* [0]=GPIO18, [1]=GPIO27: arch counter at handler entry */
++EXPORT_SYMBOL_GPL(rp1_pps_entry_cnt);
++u64 rp1_pps_entry_seqp[2];		/* per-pin sequence, bumps with rp1_pps_entry_cnt */
++EXPORT_SYMBOL_GPL(rp1_pps_entry_seqp);
++
++static int rp1_pps_debug_gpio = -1;
++module_param(rp1_pps_debug_gpio, int, 0644);
++MODULE_PARM_DESC(rp1_pps_debug_gpio, "bank-0 GPIO to pulse at bank-0 IRQ handler entry, before the PCIe read (-1 = off)");
++
++struct rp1_pps_rdstat { u64 n, sum, sumsq, min, max, hist[8]; };
++static struct rp1_pps_rdstat rp1_rd[2] = { { .min = ~0ULL }, { .min = ~0ULL } };
++static const char * const rp1_rd_name[2] = { "gpio18_pps", "gpio27_warm" };
++
++static void rp1_pps_readl_account(struct rp1_pps_rdstat *st, u64 d)
++{
++	static const u64 edges[7] = { 32, 64, 96, 128, 192, 256, 512 };
++	int i;
++
++	st->n++;
++	st->sum += d;
++	st->sumsq += d * d;
++	if (d < st->min)
++		st->min = d;
++	if (d > st->max)
++		st->max = d;
++	for (i = 0; i < 7; i++)
++		if (d < edges[i])
++			break;
++	st->hist[i]++;
++}
++
++static int rp1_pps_readl_stats_show(struct seq_file *m, void *v)
++{
++	u64 rate = arch_timer_get_rate();
++	int k;
++
++	seq_printf(m, "rate_hz=%llu\n", rate);
++	for (k = 0; k < 2; k++) {
++		struct rp1_pps_rdstat *st = &rp1_rd[k];
++		u64 n = st->n;
++
++		seq_printf(m, "%s n=%llu sum=%llu sumsq=%llu min=%llu max=%llu mean_ns=%llu min_ns=%llu max_ns=%llu "
++			   "hist<32:%llu <64:%llu <96:%llu <128:%llu <192:%llu <256:%llu <512:%llu >=512:%llu\n",
++			   rp1_rd_name[k], n, st->sum, st->sumsq, n ? st->min : 0, st->max,
++			   n && rate ? div64_u64(st->sum * NSEC_PER_SEC, n * rate) : 0,
++			   n && rate ? div64_u64(st->min * NSEC_PER_SEC, rate) : 0,
++			   rate ? div64_u64(st->max * NSEC_PER_SEC, rate) : 0,
++			   st->hist[0], st->hist[1], st->hist[2], st->hist[3],
++			   st->hist[4], st->hist[5], st->hist[6], st->hist[7]);
++	}
++	seq_printf(m, "entry_seq gpio18=%llu gpio27=%llu debug_gpio=%d\n",
++		   rp1_pps_entry_seqp[0], rp1_pps_entry_seqp[1], rp1_pps_debug_gpio);
++	return 0;
++}
++DEFINE_SHOW_ATTRIBUTE(rp1_pps_readl_stats);
++
+ static void rp1_gpio_irq_handler(struct irq_desc *desc)
+ {
++	struct timespec64 entry_ts;
++	u64 t_in, t0, t1;
+ 	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
+ 	struct rp1_pinctrl *pc = gpiochip_get_data(chip);
+ 	struct irq_chip *host_chip = irq_desc_get_chip(desc);
+@@ -810,6 +890,10 @@
+ 	unsigned long ints;
+ 	int b;
+ 
++	/* PPS experiment: earliest software stamp + arch counter, before parent ack and the PCIe status read */
++	ktime_get_real_ts64(&entry_ts);
++	t_in = arch_timer_read_counter();
++
+ 	if (pc->irq[0] == irq)
+ 		bank = &rp1_iobanks[0];
+ 	else if (pc->irq[1] == irq)
+@@ -817,9 +901,38 @@
+ 	else
+ 		bank = &rp1_iobanks[2];
+ 
++	/* v3: pulse the debug pin at ENTRY on every bank-0 interrupt, BEFORE the parent ack and the
++	 * PCIe status read, so an external counter (the Pi 4) times pin-to-entry without the ~1 us
++	 * read in the way. The counter pairs only the pulse within 500 us of the GPS edge, so the
++	 * warm edge's pulse (150 us early) is ignored there. Off unless rp1_pps_debug_gpio >= 0. */
++	if (rp1_pps_debug_gpio >= 0 && bank == &rp1_iobanks[0]) {
++		struct rp1_pin_info *dp = rp1_get_pin(chip, rp1_pps_debug_gpio);
++
++		if (dp) {
++			writel(1 << dp->offset, dp->rio + RP1_SET_OFFSET + RP1_RIO_OUT);
++			writel(1 << dp->offset, dp->rio + RP1_CLR_OFFSET + RP1_RIO_OUT);
++		}
++	}
++
+ 	chained_irq_enter(host_chip, desc);
+ 
++	t0 = arch_timer_read_counter();
+ 	ints = readl(pc->gpio_base + bank->ints_offset);
++	t1 = arch_timer_read_counter();
++	if (bank == &rp1_iobanks[0] && (ints & (BIT(18) | BIT(27)))) {
++		bcm2835_pps_entry_ts = entry_ts;
++		bcm2835_pps_entry_seq++;
++		if (ints & BIT(18)) {
++			rp1_pps_entry_cnt[0] = t_in;
++			rp1_pps_entry_seqp[0]++;
++			rp1_pps_readl_account(&rp1_rd[0], t1 - t0);
++		}
++		if (ints & BIT(27)) {
++			rp1_pps_entry_cnt[1] = t_in;
++			rp1_pps_entry_seqp[1]++;
++			rp1_pps_readl_account(&rp1_rd[1], t1 - t0);
++		}
++	}
+ 	for_each_set_bit(b, &ints, 32) {
+ 		struct rp1_pin_info *pin = rp1_get_pin(chip, bank->min_gpio + b);
+ 
+@@ -1698,6 +1811,10 @@
+ 	pc->gpio_range.gc = &pc->gpio_chip;
+ 	pinctrl_add_gpio_range(pc->pctl_dev, &pc->gpio_range);
+ 
++	/* PPS experiment: per-pin status-read statistics */
++	debugfs_create_file("rp1_pps_readl_stats", 0444, NULL, NULL,
++			    &rp1_pps_readl_stats_fops);
++
+ 	return 0;
+ 
+ out_iounmap:
