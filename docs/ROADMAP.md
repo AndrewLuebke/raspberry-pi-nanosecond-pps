@@ -27,10 +27,16 @@
       entry before the PCIe status read, and a hardirq-only warm-edge consumer. One night
       is a data point, not a floor; the enclosure and the calibration below are what make
       the number quotable.
-- [ ] **Pi 5 delivery constant**: pin→entry is uncalibrated (≈1.2 µs by the in-kernel loop
-      estimate). Wire GPIO22 (pulsed at handler entry) to a Pi 4 GPIO and pair the stamps
-      on the Pi 4's clock (`tools/tic-pair.py`); split the posted-write flight with the
-      measured 990 ns read round trip. Then set the PPS `offset` / QPPS `DELIVERY_NS`.
+- [x] **Pi 5 delivery constant** (2026-09-08): GPIO22 pulsed at handler entry (v3 kernel),
+      wired to the Pi 4, paired on the Pi 4's clock: 2.44 µs arrival, 1.8 ± 0.25 µs
+      pin→entry after the write-flight split; `DELIVERY_NS=1800`, PPS `offset +1.8 µs`.
+- [ ] **Split the ±0.25 µs write flight** with the Pico TIC stamping the pulse pin's edge
+      against its own timebase (needs the 25 MHz crystal transplant).
+- [ ] **Pi 4 delivery constant, measured**: the 850 ns is a loopback bound. Reverse the
+      pairing (pulse from the Pi 4's handler, stamp on a Pi 5 `pps-gpio` input on the wired
+      pin — boot-time overlay, runtime overlays wedge on the 7.3 kernel) or use the Pico.
+      Until then the Pi 5's NTP view of the Pi 4 (~1.6 µs ahead) is software-timestamp
+      asymmetry, not a clock error.
 - [ ] **OCXO conditioning**: both OCXOs are free-running today (chrony absorbs the rate in
       software). A 16-bit AD5693R DAC on one OCXO's EFC, driven by a slow PPS-error loop,
       is planned: holdover and the long end of the ADEV curve, not the per-pulse capture.

@@ -324,6 +324,20 @@ kernel produced six samples: v3 pulses on the warm edge too, 150 µs before the 
 pairing tool's blocking fetch skipped the PPS pulse while waking from the first; the tool now
 settles half a millisecond and takes the newest event.
 
+**After the +1.8 µs move (09-09, ~14:30 Pacific):** the Pi 5's NTP measurement of the Pi 4
+reads −1.6 µs (`sourcestats`, 29 samples, SD 217 ns; the Pi 5 behind the Pi 4, i.e. the
+Pi 4 ahead) against −3.7 µs before the move; LAN clients that follow the Pi 5 see the Pi 4
+1–2 µs ahead (andrew-pc −1.9 µs over 21 samples, SD 1.2 µs; pve −1.0 µs). The 1.8 µs shift
+is accounted for exactly; the residue has the sign of a software RX-late / TX-early
+timestamp asymmetry on the Pi 4 (it has no PHC), which an NTP measurement cannot separate
+from a true clock offset. It is not evidence that the two boards disagree.
+
+Context from outside: SatPulse's 2026-09-06 tinyGTC measurement of a stock Pi 5 (
+`pps-rp1` overlay, kernel 6.12.70) puts the kernel stamp 11.7 µs after the edge, 6.2 µs
+with RP1 L1 ASPM off, 5.2 µs with the CPU clock pinned — the two knobs this board already
+runs. The entry-stamp path's 1.8 ± 0.25 µs is the same trip measured with a different
+counter (paired Pi 4) and receiver.
+
 ## qErr predictor on the Pi 4 feeder (09-08, Pacific 13:38–14:07)
 
 Same predictor ported to `daemon/qpps-shm.py` (gpsd-fed; the test hook withholds TIM-TP values

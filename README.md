@@ -33,11 +33,22 @@ historical ladder uses a third measure, `ppstest` sample SD, and is labelled whe
 | raw scatter, idle, other days | — | 10–12 ns (calm night is the best case) |
 | chrony residual under load, shipped stack: fork storm / DRAM hog / NTP ≤ 1000 req/s | 4.4 / 4.9 / — ns | 5.0 (p99 106) / 3.7 (p99 242) / 4.2–5.1 ns; page-cache reads, 64 MB working set, line-rate NIC: 9–15 ns; cache-maintenance stressors: 37–109 ns |
 | NTP serving ceiling, one core | rate-limited by policy | ~150k req/s; residual ≤ 6.4 ns throughout |
-| absolute delivery | loopback-calibrated ≈ 850 ns, ±90 ns unmeasurable posted-write split; not GPS-traceable | uncalibrated; in-kernel loop 1.76 µs is the upper bound on pin-to-entry (~1.1–1.3 µs after subtracting a plausible write flight, not measured) |
+| absolute delivery | loopback-calibrated ≈ 850 ns, ±90 ns unmeasurable posted-write split; not GPS-traceable | pin→entry **1.8 ± 0.25 µs**, measured 2026-09-08 by pairing the entry-stamp pulse against the Pi 4's clock (pulse arrival 2.44 µs, robust SD 136 ns; warmer loop 2.22 µs; flight taken as half the 0.99 µs read round trip); applied as `DELIVERY_NS=1800` / refclock `offset +1.8 µs`; the ±0.25 µs is the write-flight split, for the Pico TIC |
 | what the patches remove | thread wake, 3.3 µs demux, cold-cache scatter (entry stamp + steer + software-pended pre-warm IRQ) | the ~1 µs PCIe status read before the stamp, and a warm-edge IRQ thread on the timing core |
 
 Write-ups: **[`docs/PI5.md`](docs/PI5.md)** for the Pi 5 (2026-09-03 → 09-08) and the
 Pi 4 story below (2026-08-29/30). Measurements for both: `docs/MEASUREMENTS.md`.
+
+For scale, the stock Pi 5 path was measured independently the same week: James Clark's
+[Measuring Systematic PPS Bias on the Raspberry Pi 5](https://satpulse.net/2026/09/06/measuring-systematic-pps-bias-on-the-raspberry-pi-5.html)
+(SatPulse, 2026-09-06) clocks the kernel stamp with a tinyGTC counter at **11.7 µs** after
+the edge on a stock kernel, **~6.2 µs** with the RP1 link's L1 power state disabled and
+**~5.2 µs** with the CPU clock pinned. Both of those settings are in effect here; the
+entry-stamp kernel's 1.8 ± 0.25 µs is what remains of the same MSI trip once the stamp is
+taken at interrupt entry with the path kept warm. The two numbers come from different
+counters (a tinyGTC versus a paired Pi 4) and different receivers, so treat the comparison
+as µs-scale, not ns-scale. That post also settles the *accuracy versus precision* framing:
+everything in the table above except this row is precision.
 Independent adversarial reviews of both efforts: `docs/review/`.
 
 ## What is in here
@@ -142,4 +153,8 @@ hardware property. Measured silicon budget: ~10–20 ns σ. Everything else was:
 
 Lab notebook with receipts for two servers we operate (a Pi 4 and, since 2026-09, a Pi 5 —
 see `docs/PI5.md`); private/pre-release; not a distribution guide. The Pi 4 delivery figure
-is a loopback bound (≈ 850 ± 90 ns), the Pi 5's is uncalibrated; neither is GPS-traceable.
+is a loopback bound (≈ 850 ± 90 ns); the Pi 5's is paired against the Pi 4's clock at
+1.8 ± 0.25 µs (2026-09-08). Neither is GPS-traceable yet: the Pi 4's own pin→stamp delay is
+the next measurement (reverse pairing or the Pico TIC), and until then the two boards' NTP
+view of each other (the Pi 5 reads the Pi 4 ~1.6 µs ahead after the +1.8 µs move) is a
+software-timestamp asymmetry number, not a clock disagreement.

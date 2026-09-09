@@ -145,14 +145,17 @@ measurement of the Pi 4 stepped from −5.9 to −3.7 µs at that minute, matchi
 entry-to-leaf mean the patch had measured, so the stamp really did move by the software
 path the instrumentation reported. That is all the NTP number is used for: the remaining
 −3.7 µs mixes network asymmetry, the Pi 4's own delay and the Pi 5's, and cannot be read as
-an error against GPS. The Pi 5's remaining pin-to-entry delay (the MSI trip) is
-uncalibrated; the in-kernel loopback in `pps_warm` v2 measures the write-plus-return loop at
-1.76 µs at idle (robust 82 ns), which is the hard upper bound on pin-to-entry; subtracting a
-plausible outbound write flight gives ~1.1–1.3 µs, an estimate, not a measurement. The calibration recipe (pulse a spare pin at
-handler entry, wire it to the Pi 4, pair the stamps on the Pi 4's clock with
-`tools/tic-pair.py`) is built and waiting for a jumper; the Pi 4's own delivery figure,
-≈ 850 ns with ±90 ns of unmeasurable posted-write split, is a GPIO-loopback calibration and
-not GPS-traceable either.
+an error against GPS. The Pi 5's pin-to-entry delay (the MSI trip) was then measured
+directly (2026-09-08, `docs/MEASUREMENTS.md`, run 4): a spare pin pulsed at the first line
+of the handler on the v3 kernel, wired to the Pi 4, and paired against the Pi 4's stamp of
+the same GPS edge with `tools/tic-pair.py` arrives **2.44 µs** after the edge (robust SD
+136 ns), the in-kernel warmer loop reads 2.22 µs at the same time, and taking the posted
+write as half the 0.99 µs read round trip gives **1.8 ± 0.25 µs** — applied as the feeder's
+`DELIVERY_NS=1800` and the raw refclock's `offset +1.8 µs`. The earlier loop-only estimate
+(1.76 µs bound, ~1.1–1.3 µs guess) was low by about 0.5 µs, the size of the write flight it
+had to assume. The Pi 4's own delivery figure, ≈ 850 ns with ±90 ns of unmeasurable
+posted-write split, is a GPIO-loopback calibration and not GPS-traceable; measuring it the
+same way (pulse from the Pi 4, stamp on the Pi 5) or with the Pico TIC is the next step.
 
 ## Serving
 
@@ -195,9 +198,12 @@ throughout.
   which argues against die temperature, though it does not isolate every board gradient. An
   enclosure and the SHT35 logger are the next step, and the single calm night above is a
   data point, not the floor.
-- The absolute time of the Pi 5 is uncalibrated, with the loopback bound above; the Pi 4's
-  ≈ 850 ns (with ±90 ns of unmeasurable posted-write split) is a GPIO-loopback calibration,
-  not GPS-traceable.
+- The absolute time of the Pi 5 is calibrated to ±0.25 µs against the Pi 4's clock (the
+  write-flight split); the Pi 4's ≈ 850 ns (with ±90 ns of unmeasurable posted-write split)
+  is a GPIO-loopback calibration, not GPS-traceable. After the +1.8 µs move the Pi 5 reads
+  the Pi 4 ~1.6 µs ahead over NTP (was −3.7 µs before), and LAN clients agree at 1–2 µs;
+  that residue is the Pi 4's software RX/TX timestamp asymmetry as seen over NTP, not a
+  measured clock disagreement, and cannot be resolved over NTP.
 
 ## Negative results, kept on purpose
 
