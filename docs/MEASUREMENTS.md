@@ -300,9 +300,17 @@ Subtracting the status read (0.99 µs measured) leaves 2.4 µs for entry delay p
 the warmer's own loop (drive → entry, 1.96 µs) is write flight plus entry delay from the other
 side, so the entry delay is bracketed at roughly **1.5–1.9 µs** with ~0.4 µs unresolved between the
 two measurements (the Pi 4's two leaf delays and the two RP1 write paths are assumed equal).
-Next: emit the pulse unconditionally at handler entry, before the read (a one-line change), rerun,
-then set the Pi 5 feeder's `DELIVERY_NS`. The Pi 5 is currently that far behind GPS in absolute
-terms; the fleet follows it.
+**Run 4 (v3 kernel, Pacific 20:48–20:58):** with the pulse emitted at handler entry, before the
+PCIe read, the pulse arrives **2.44 µs** after the GPS edge (n = 597, median 2444, mean 2474,
+robust SD **136 ns**, p10/p90 2314/2685; `data/pi5/results/tic-pair-run4-20260908.txt`). The
+tighter spread is the read leaving the path. The warmer's own drive-to-entry loop read 2.22 µs at
+the same time; both are entry delay plus one posted-write flight, and they agree to 0.2 µs (the
+Pi 4's two instances are not perfectly symmetric). Taking the flight as half the 0.99 µs read
+round trip gives an entry delay of **1.7–1.9 µs**; the Pi 5 feeder's `DELIVERY_NS` is set to
+**1800** (systemd drop-in), with ±0.25 µs left in the write-flight assumption. Run 3 on the same
+kernel produced six samples: v3 pulses on the warm edge too, 150 µs before the PPS, and the
+pairing tool's blocking fetch skipped the PPS pulse while waking from the first; the tool now
+settles half a millisecond and takes the newest event.
 
 ## qErr predictor on the Pi 4 feeder (09-08, Pacific 13:38–14:07)
 
