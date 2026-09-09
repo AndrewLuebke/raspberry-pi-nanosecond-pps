@@ -276,7 +276,8 @@ The morning ladder showed the Pi 4 at 155–212 ns robust per hour, nearly every
 arming on a `chronyc tracking` parse that read the "System time" line's fourth field as
 seconds; the ps/ppt chronyc installed at 15:41 prints `118 ps` there, the test read 118,
 decided chrony was unlocked, and disarmed the warmer. Fixed 09:13 by moving the test to
-`chronyc -c tracking` (CSV stays numeric); the warmer re-armed within a minute. Lesson recorded
+`chronyc -c tracking` (CSV stays numeric); the warmer re-armed within a minute and the raw jitter
+was back to 7.4 ns robust (no pulse over 100 ns) in the first three minutes. Lesson recorded
 in `chrony/README.md`: enumerate every script that parses chronyc before changing its output,
 and prefer CSV mode in scripts.
 
