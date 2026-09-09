@@ -332,6 +332,23 @@ is accounted for exactly; the residue has the sign of a software RX-late / TX-ea
 timestamp asymmetry on the Pi 4 (it has no PHC), which an NTP measurement cannot separate
 from a true clock offset. It is not evidence that the two boards disagree.
 
+## Reverse pairing: the Pi 4's delay on the Pi 5's clock (09-09, Pacific 16:20–16:32)
+
+Same wire, other direction, no kernel change (`tools/reverse-tic/`): the Pi 4 raises GPIO22 from userspace
+right after its entry-stamped GPS assert and logs its own write latency per pulse; the Pi 5 stamps the edge on
+GPIO23 with a GPIO line event (CLOCK_REALTIME) and pairs it with its entry-stamped GPS assert. With every term a
+difference inside one clock, `d4 = (t23 − a5) − (w4 − a4) − L5 − f4 − c`; L5 = 2213 ns (the Pi 5's pps-gpio
+entry→leaf mean, SD 90 ns; the line-event stamp is a leaf stamp), f4 = 120 ns (looptest bound ≤ 173),
+c = 5 ns. 721 paired seconds: interval median **3519 ns**, p1 3092, p10 3203, p90 4055; the distribution is
+right-skewed and correlates with the Pi 4's userspace wake latency (r = 0.31), i.e. the Pi 4 write path
+under load is the scatter, not the Pi 5. **d4 = 1181 ns (median) / 981 ns (p1, clean path)**, systematic
+±0.2 µs. The 850 ns loopback constant the Pi 4 runs with is therefore low by 0.1–0.35 µs, so .17 sits that
+far behind GPS — small, and opposite in sign to the 1.6 µs by which .17 reads *ahead* over NTP, which
+confirms the NTP residue is the Pi 4's software-timestamp asymmetry. Both boards' raw asserts sat where
+their constants say during the run (Pi 4 +851 ns, robust SD 7.4; Pi 5 +1799 ns, SD 11.9). Not applied to
+.17; a kernel-side pulse on the Pi 4 (or the Pico) would remove the f4 term and settle the last 0.2 µs.
+Logs: `data/pi4/results/reverse-tic-20260909/`.
+
 Context from outside: SatPulse's 2026-09-06 tinyGTC measurement of a stock Pi 5 (
 `pps-rp1` overlay, kernel 6.12.70) puts the kernel stamp 11.7 µs after the edge, 6.2 µs
 with RP1 L1 ASPM off, 5.2 µs with the CPU clock pinned — the two knobs this board already

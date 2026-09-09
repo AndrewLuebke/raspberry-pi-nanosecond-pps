@@ -34,11 +34,11 @@
       pin→entry after the write-flight split; `DELIVERY_NS=1800`, PPS `offset +1.8 µs`.
 - [ ] **Split the ±0.25 µs write flight** with the Pico TIC stamping the pulse pin's edge
       against its own timebase (needs the 25 MHz crystal transplant).
-- [ ] **Pi 4 delivery constant, measured**: the 850 ns is a loopback bound. Reverse the
-      pairing (pulse from the Pi 4's handler, stamp on a Pi 5 `pps-gpio` input on the wired
-      pin — boot-time overlay, runtime overlays wedge on the 7.3 kernel) or use the Pico.
-      Until then the Pi 5's NTP view of the Pi 4 (~1.6 µs ahead) is software-timestamp
-      asymmetry, not a clock error.
+- [~] **Pi 4 delivery constant, measured** (2026-09-09, `tools/reverse-tic/`): reverse pairing
+      with a userspace echo gives 1.0–1.2 µs (median 1181, clean-path 981), ±0.2 µs, so the
+      850 ns in service is low by 0.1–0.35 µs. Not yet applied. To close: a kernel-side pulse
+      in the Pi 4's handler (removes the write-flight term) or the Pico. The Pi 5's NTP view
+      of the Pi 4 (~1.6 µs *ahead*) has the opposite sign and is software-timestamp asymmetry.
 - [ ] **OCXO conditioning**: both OCXOs are free-running today (chrony absorbs the rate in
       software). A 16-bit AD5693R DAC on one OCXO's EFC, driven by a slow PPS-error loop,
       is planned: holdover and the long end of the ADEV curve, not the per-pulse capture.
