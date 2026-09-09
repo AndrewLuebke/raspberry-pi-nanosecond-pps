@@ -50,7 +50,7 @@ Independent adversarial reviews of both efforts: `docs/review/`.
 | `daemon/` | qErr-corrected PPS → chrony SHM feeder (`qpps-shm.py`), the qErr forwarder that lets a second Pi use the F9T's per-pulse correction (`qerr-forward.py`), and the peer-edition feeder with the gap predictor (`qpps-shm-peer.py`, see `docs/PI5.md`) |
 | `tools/` | analysis (`pps_stats.py`, `chronylog-stats.py`, `phase-analyze.py`), the loopback calibrators (`looptest*.c`, `loopwarm2.c`, `tic-pair.py`), load generators (`ntpflood.c`, `ntpload.py`), and `pi5-experiments/` — the scripts behind every Pi 5 number |
 | `data/` | raw windows and loopback data (Pi 4), `pi5/` per-phase results and the first overnight log archive |
-| `pico/` | RP2040 PIO edge-capture firmware (the hardware-capture path, also the plan for RP1's PIO) |
+| `pico/` | the Pico PPS timestamper firmware (OCXO-clocked PIO capture; RP2040 and RP2350 builds, `pico/README.md`) |
 | `chrony/` | chrony 4.9 resolution patches: tracking.log frequency/skew at ppt, and chronyc showing picoseconds and ppt instead of rounding to ns/ppb (`chrony/README.md`) |
 
 ## Quick start
