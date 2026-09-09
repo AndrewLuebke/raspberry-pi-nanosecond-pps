@@ -30,11 +30,17 @@ last = None; vals = []; t0 = time.time()
 while time.time() - t0 < secs:
     r = fetch(fdbg, True)
     if not r or r[0] == last: continue
+    # v3 kernels pulse on EVERY bank-0 interrupt: the warm edge (~150 us early) and then the PPS entry. The
+    # blocking fetch waits for an event newer than the one present when it is called, so a second pulse that
+    # lands while we are waking up would be skipped. Settle, then take the newest event: that is the PPS one.
+    time.sleep(0.0005)
+    r2 = fetch(fdbg, False)
+    if r2 and r2[0] != r[0]: r = r2
     last = r[0]; dbg_ns = r[1]
     g = fetch(fgps, False)
     if not g: continue
     gps_ns = g[1]
-    if abs(dbg_ns - gps_ns) > 500_000: continue               # not the same pulse
+    if abs(dbg_ns - gps_ns) > 50_000: continue                # not the PPS pulse (the warm pulse is ~150 us early)
     iv = (dbg_ns - delta17) - gps_ns
     vals.append(iv); print(f"{gps_ns // 10**9},{iv}", flush=True)
     if len(vals) % 60 == 0:
