@@ -4,8 +4,8 @@
 Fuses the two per-second streams on ntp-server (.17):
   - kernel PPS assert timestamps from /dev/pps0 (blocking PPS_FETCH ioctl,
     same source chrony's PPS refclock uses), and
-  - ZED-F9T UBX-TIM-TP qErr via gpsd's raw stream (parser lifted from
-    qerr-logger.py; TIM-TP describes the NEXT pulse, so the correction is
+  - ZED-F9T UBX-TIM-TP qErr via gpsd's raw stream (parser adapted from
+    a UBX logger not included in this tree; TIM-TP describes the NEXT pulse, so the correction is
     always known ~0.9s before the edge arrives),
 and publishes qErr-corrected samples to chrony SHM unit 2 (refid QPPS).
 

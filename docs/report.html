@@ -113,8 +113,8 @@ shaping the tail). That explains the signature finding of the whole program: the
 <em>load-invariant</em>, because even a quiet second is enough to randomize the caches.</p>
 <p>The clinching evidence: a CoreSight-traced GICv2/ARMv8 study measured the full hardware
 delivery pipeline at 232 ns latency with <em>a few ns</em> of spread when caches are hot —
-and 1.5–4.4 µs when cold. Cache state is a ~10× lever on identical silicon. The best prior
-software figure on any Pi (~54 ns, on a Pi 5) required exactly what we built tonight: an
+and 1.5–4.4 µs when cold. Cache state is a ~10× lever on identical silicon. A ~54 ns figure we had
+seen quoted for a Pi 5 (not verified here) required exactly what we built tonight: an
 isolated, IRQ-pinned core.</p>
 
 <h2>3 · The evening's measurements</h2>
@@ -124,7 +124,7 @@ isolated, IRQ-pinned core.</p>
 <tr><td>CPU0 baseline (old boot)</td><td class="num">313</td><td class="num">268</td><td class="num">582</td><td class="num">1,920</td><td class="num">7.3%</td></tr>
 <tr><td>CPU0 control (isolcpus boot, same day)</td><td class="num">260</td><td class="num">123</td><td class="num">368</td><td class="num">3,464</td><td class="num">1.5%</td></tr>
 <tr><td>steered to CPU2 + <strong>isolcpus=2,3</strong></td><td class="num">130</td><td class="num">148</td><td class="num">208</td><td class="num">561</td><td class="num">0.3%</td></tr>
-<tr class="hero"><td>+ pre-warm interrupt (window C)</td><td class="num">13.4</td><td class="num">11.1</td><td class="num">23</td><td class="num">96</td><td class="num">0%</td></tr>
+<tr class="hero"><td>+ pre-warm interrupt (window C)</td><td class="num">13.4</td><td class="num">10.4</td><td class="num">23</td><td class="num">96</td><td class="num">0%</td></tr>
 </table></div>
 <p class="small">† scaled MAD (1.4826×), all values ns. Every window: zero missed pulses.</p>
 <p>What each lever bought: steering to a merely <em>different</em> busy core bought nothing

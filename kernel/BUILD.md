@@ -67,8 +67,8 @@ this order:
    counter per pin (`rp1_pps_entry_cnt[2]` / `rp1_pps_entry_seqp[2]`, consumed by
    `modules/pps_warm`), keep per-pin round-trip statistics in debugfs
    `rp1_pps_readl_stats`, and optionally pulse a spare bank-0 pin right after the stamp
-   (`pinctrl_rp1.rp1_pps_debug_gpio=22`, writable at runtime) for the Pi-4-as-counter
-   calibration. `…-rp1-entry-stamp.diff` (v1) is the first, single-histogram version.
+   (`pinctrl_rp1.rp1_pps_debug_gpio=<gpio>`, writable at runtime; the live wire is on GPIO23,
+   header pin 16, so the value used is 23) for the Pi-4-as-counter calibration. `…-rp1-entry-stamp.diff` (v1) is the first, single-histogram version.
    **v3** (`…-rp1-entry-stamp-v3.diff`, 2026-09-08) moves that calibration pulse to the handler's
    first lines, before the parent ack and the PCIe status read, and fires it on every bank-0
    interrupt while the parameter is set: the v2 pulse sat after the ~1 µs read and gated on the
@@ -80,7 +80,7 @@ this order:
 ```sh
 # on the build host (aarch64-linux-gnu-gcc 14.2, same major as the target's build)
 cd linux-rpi-7.3.y && patch -p1 < pps-timing-patches-7.3rc1.diff \
-  && patch -p1 < pps-timing-patches-7.3rc1-rp1-entry-stamp-v2.diff
+  && patch -p1 < pps-timing-patches-7.3rc1-rp1-entry-stamp-v3.diff   # or -v2.diff for the overnight stack
 export ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- LOCALVERSION="-rp1ts2+"
 make olddefconfig && make -j$(nproc) Image modules
 make modules_install INSTALL_MOD_PATH=./stage

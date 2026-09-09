@@ -7,8 +7,6 @@
       ~1e-10 @ 1 d figure comes from the noisy era and is expected to drop.
 - [ ] PMU fingerprint of the residual 13 ns (L2D_CACHE_REFILL / BR_MIS_PRED sampled
       at the stamp) + LPDDR4 refresh-bump histogram check (+140/+280 ns).
-- [ ] Tighten the ±90 ns uncertainty on the ~850 ns loopback delivery delay via an external
-      observer (RP2040 TIC or scope).
 - [ ] rpi-7.3.y rebase when the branch appears (hardirq split becomes native there;
       carried delta shrinks to entry-stamp + steer + guard).
 
@@ -35,9 +33,10 @@
 - [ ] **Split the ±0.25 µs write flight** with the Pico TIC stamping the pulse pin's edge
       against its own timebase (needs the 25 MHz crystal transplant).
 - [~] **Pi 4 delivery constant, measured** (2026-09-09, `tools/reverse-tic/`): reverse pairing
-      with a userspace echo gives 1.0–1.2 µs (median 1181, clean-path 981), ±0.2 µs, so the
-      850 ns in service is low by 0.1–0.35 µs. Not yet applied. To close: a kernel-side pulse
-      in the Pi 4's handler (removes the write-flight term) or the Pico. The Pi 5's NTP view
+      with a userspace echo gives 0.75–1.18 µs (p1 754, median 1181), ±0.2 µs; the 850 ns in
+      service sits inside that span. Not applied. To close (also retires the ±90 ns loopback
+      item): a kernel-side pulse in the Pi 4's handler (removes the write-flight term) or the
+      Pico TIC. The Pi 5's NTP view
       of the Pi 4 (~1.6 µs *ahead*) has the opposite sign and is software-timestamp asymmetry.
 - [ ] **OCXO conditioning**: both OCXOs are free-running today (chrony absorbs the rate in
       software). A 16-bit AD5693R DAC on one OCXO's EFC, driven by a slow PPS-error loop,

@@ -156,9 +156,10 @@ the same GPS edge with `tools/tic-pair.py` arrives **2.44 µs** after the edge (
 write as half the 0.99 µs read round trip gives **1.8 ± 0.25 µs** — applied as the feeder's
 `DELIVERY_NS=1800` and the raw refclock's `offset +1.8 µs`. The earlier loop-only estimate
 (1.76 µs bound, ~1.1–1.3 µs guess) was low by about 0.5 µs, the size of the write flight it
-had to assume. The Pi 4's own delivery figure, ≈ 850 ns with ±90 ns of unmeasurable
-posted-write split, is a GPIO-loopback calibration and not GPS-traceable; measuring it the
-same way (pulse from the Pi 4, stamp on the Pi 5) or with the Pico TIC is the next step.
+had to assume. The Pi 4's own delivery figure was then measured the same way, other direction
+(2026-09-09, `tools/reverse-tic/`, `docs/MEASUREMENTS.md`): 1181 ns (median) / 754 ns (p1), ±0.2 µs,
+userspace echo; the 850 ns loopback constant in service sits inside that span and has not been
+updated. Neither number is GPS-traceable.
 
 ## Serving
 
@@ -203,7 +204,9 @@ throughout.
   data point, not the floor.
 - The absolute time of the Pi 5 is calibrated to ±0.25 µs against the Pi 4's clock (the
   write-flight split); the Pi 4's ≈ 850 ns (with ±90 ns of unmeasurable posted-write split)
-  is a GPIO-loopback calibration, not GPS-traceable. After the +1.8 µs move the Pi 5 reads
+  is a GPIO-loopback calibration, not GPS-traceable; reverse pairing on 2026-09-09 (userspace
+  echo, `tools/reverse-tic/`) puts the Pi 4's pin→entry at 0.75–1.18 µs ±0.2 µs, not yet
+  applied. After the +1.8 µs move the Pi 5 reads
   the Pi 4 ~1.6 µs ahead over NTP (was −3.7 µs before), and LAN clients agree at 1–2 µs;
   that residue is the Pi 4's software RX/TX timestamp asymmetry as seen over NTP, not a
   measured clock disagreement, and cannot be resolved over NTP.
@@ -230,8 +233,8 @@ The Pi 5 has no serial link to the F9T; its per-pulse quantization correction (q
 comes from the Pi 4 over UDP (`daemon/qerr-forward.py`), one datagram per pulse ~0.9 s ahead,
 carrying the last four (second, qErr) pairs. `daemon/qpps-shm-peer.py` fuses it with the local
 kernel stamp into chrony's SHM unit 2 (QPPS). Since 2026-09-08 QPPS is the Pi 5's steering
-refclock; on the same overnight pulses it trims the raw scatter by ~0.5 ns (SD 7.93 → 7.45) and
-leaves chrony's residual unchanged (3.60 vs 3.57), as expected for a 2.3 ns RMS sawtooth under
+refclock; on the same overnight pulses sample SD falls 7.37 → 7.00 ns and robust SD is unchanged
+at 7.4 ns; chrony's residual is unchanged (3.60 vs 3.57), as expected for a 2.3 ns RMS sawtooth under
 `filter 16`. Its value grows as the capture floor drops.
 
 A lost datagram means the pulse's qErr is unknown when it is stamped (the redundant copies arrive

@@ -18,5 +18,6 @@ other way with no kernel change on either board (2026-09-09):
 
 Result 2026-09-09 (721 s): paired interval median 3519 ns (p1 3092, p10 3203, p90 4055), right-skewed and
 correlated (r = 0.31) with the Pi 4's wake latency, so the Pi 4 write path is the scatter source, not the Pi 5
-(whose leaf SD is 90 ns). **d4 ≈ 1.0–1.2 µs**: median estimator 1181 ns, clean-path (p1) estimator 981 ns,
-±~0.2 µs systematic (L5 applicability, f4). The loopback figure in service (850 ns) is low by 0.1–0.35 µs.
+(whose leaf SD is 90 ns). **d4 = 1181 ns (median) / 754 ns (p1)**, i.e. 0.75–1.18 µs, ±~0.2 µs systematic (L5
+applicability, f4). The loopback figure in service (850 ns) sits inside that span. The L5 used (2213 ns) is the
+dmesg line archived next to the logs (`pi5-entry-leaf-dmesg.txt`).

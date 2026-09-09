@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 // pps_prewarm.c v2 — warm the GPIO IRQ delivery path just before each PPS
 // pulse. Revised per adversarial review (grok-node ~/pps-warm-review/REVIEW.md):
 //

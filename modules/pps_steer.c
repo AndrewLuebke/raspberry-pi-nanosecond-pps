@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 // pps_steer.c — steer a BCM2711 GPIO bank GIC SPI to a chosen CPU.
 //
 // The pinctrl-bcm2835 bank interrupts are *chained* (no irqaction), so they

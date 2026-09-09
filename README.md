@@ -28,12 +28,12 @@ historical ladder uses a third measure, `ppstest` sample SD, and is labelled whe
 | | Pi 4 (BCM2711) | Pi 5 (BCM2712 + RP1) |
 |---|---|---|
 | raw per-pulse scatter, robust SD, one calm night (2026-09-08, 02:00–15:00 UTC) | 7.4 ns | 7.4 ns |
-| chrony residual, that night, hands-off | 4.5–5.0 ns | 3.1–4.0 ns (13 complete hours) |
-| tails in that night's window | 3 pulses > 1 µs, filtered | no µs outliers; 2 pulses > 100 ns |
+| chrony residual, that night, hands-off | 4.5–5.0 ns (live read, not archived) | 3.1–4.0 ns (13 complete hours; \|max\| 30–50 ns typical) |
+| tails in that night's window | 3 pulses > 1 µs, filtered (live read, not archived) | no µs outliers; 2 pulses > 100 ns |
 | raw scatter, idle, other days | — | 10–12 ns (calm night is the best case) |
-| chrony residual under load, shipped stack: fork storm / DRAM hog / NTP ≤ 1000 req/s | 4.4 / 4.9 / — ns | 5.0 (p99 106) / 3.7 (p99 242) / 4.2–5.1 ns; page-cache reads, 64 MB working set, line-rate NIC: 9–15 ns; cache-maintenance stressors: 37–109 ns |
+| chrony residual under load, shipped stack: fork storm / DRAM hog / NTP ≤ 1000 req/s | 4.4 / 4.9 / — ns (raw p99 not archived) | 5.0 (p99 106) / 3.7 (p99 242) / 4.2–5.1 ns (p99 17–23); page-cache reads / 64 MB working set / line-rate NIC: 13.3 / 14.9 / 8.8 ns; cache-maintenance stressors: 37–109 ns |
 | NTP serving ceiling, one core | rate-limited by policy | ~150k req/s; residual ≤ 6.4 ns throughout |
-| absolute delivery | loopback-calibrated ≈ 850 ns in service; reverse pairing on the Pi 5's clock (2026-09-09, userspace echo) says **1.0–1.2 µs** ±0.2 µs, i.e. the constant is low by 0.1–0.35 µs, not yet applied | pin→entry **1.8 ± 0.25 µs**, measured 2026-09-08 by pairing the entry-stamp pulse against the Pi 4's clock (pulse arrival 2.44 µs, robust SD 136 ns; warmer loop 2.22 µs; flight taken as half the 0.99 µs read round trip); applied as `DELIVERY_NS=1800` / refclock `offset +1.8 µs`; the ±0.25 µs is the write-flight split, for the Pico TIC |
+| absolute delivery | loopback-calibrated ≈ 850 ns in service; reverse pairing on the Pi 5's clock (2026-09-09, userspace echo) gives **0.75–1.18 µs** (p1 to median) ±0.2 µs, so the constant sits inside the measured span; not yet applied | pin→entry **1.8 ± 0.25 µs**, measured 2026-09-08 by pairing the entry-stamp pulse against the Pi 4's clock (pulse arrival 2.44 µs, robust SD 136 ns; warmer loop 2.22 µs; flight taken as half the 0.99 µs read round trip); applied as `DELIVERY_NS=1800` / refclock `offset +1.8 µs`; the ±0.25 µs is the write-flight split, for the Pico TIC |
 | what the patches remove | thread wake, 3.3 µs demux, cold-cache scatter (entry stamp + steer + software-pended pre-warm IRQ) | the ~1 µs PCIe status read before the stamp, and a warm-edge IRQ thread on the timing core |
 
 Write-ups: **[`docs/PI5.md`](docs/PI5.md)** for the Pi 5 (2026-09-03 → 09-08) and the
@@ -59,14 +59,16 @@ Independent adversarial reviews of both efforts: `docs/review/`.
 | `modules/` | `pps_prewarm` (Pi 4 software-pended warm IRQ), `pps_steer`, `pps_warm/` (Pi 5 hardirq-only warm consumer + in-kernel warmer with loop-latency readback, and its DT overlay) |
 | `deploy/`, `deploy/pi5/` | the exact running configuration of each server: cmdline, config.txt, udev, systemd units, IRQ pinning, chrony refclock lines |
 | `daemon/` | qErr-corrected PPS → chrony SHM feeder (`qpps-shm.py`), the qErr forwarder that lets a second Pi use the F9T's per-pulse correction (`qerr-forward.py`), and the peer-edition feeder with the gap predictor (`qpps-shm-peer.py`, see `docs/PI5.md`) |
-| `tools/` | analysis (`pps_stats.py`, `chronylog-stats.py`, `phase-analyze.py`), the loopback calibrators (`looptest*.c`, `loopwarm2.c`, `tic-pair.py`), load generators (`ntpflood.c`, `ntpload.py`), and `pi5-experiments/` — the scripts behind every Pi 5 number |
-| `data/` | raw windows and loopback data (Pi 4), `pi5/` per-phase results and the first overnight log archive |
+| `tools/` | analysis (`pps_stats.py`, `chronylog-stats.py`, `phase-analyze.py`), the loopback calibrators (`looptest*.c`, `loopwarm2.c`, `tic-pair.py`), load generators (`ntpflood.c`, `ntpload.py`), `reverse-tic/` (the Pi 4's delay on the Pi 5's clock), and `pi5-experiments/` — the scripts behind every Pi 5 number |
+| `data/` | raw windows and loopback data (Pi 4), `pi4/results/reverse-tic-20260909/` (reverse pairing logs), `pi5/` per-phase results and the first overnight log archive |
 | `pico/` | the Pico PPS timestamper firmware (OCXO-clocked PIO capture; RP2040 and RP2350 builds, `pico/README.md`) |
 | `chrony/` | chrony 4.9 resolution patches: tracking.log frequency/skew at ppt, and chronyc showing picoseconds and ppt instead of rounding to ns/ppb (`chrony/README.md`) |
 
 ## Quick start
 
-**Pi 5:** build `rpi-7.3.y` with the two patches in `kernel/` (see `kernel/BUILD.md`), install
+**Pi 5:** build `rpi-7.3.y` with `kernel/pps-timing-patches-7.3rc1.diff` then
+`…-rp1-entry-stamp-v2.diff` (the overnight stack) or `…-v3.diff` (adds the entry-time
+calibration pulse; what `.18` runs now) — see `kernel/BUILD.md` — install
 `modules/pps_warm` and its overlay, copy `deploy/pi5/` into place (config.txt overlays for
 GPIO18 PPS and `pps-warm`, cmdline isolation, the IRQ-pin script that also disables ASPM L1
 on the RP1 link, `use_early=1`), jumper GPIO17→GPIO27 (the `pps_warm` module then drives
@@ -152,12 +154,12 @@ hardware property. Measured silicon budget: ~10–20 ns σ. Everything else was:
 ### Status
 
 Lab notebook with receipts for two servers we operate (a Pi 4 and, since 2026-09, a Pi 5 —
-see `docs/PI5.md`); private/pre-release; not a distribution guide. The Pi 4 delivery figure
-is a loopback bound (≈ 850 ± 90 ns); the Pi 5's is paired against the Pi 4's clock at
-1.8 ± 0.25 µs (2026-09-08). Neither is GPS-traceable yet: the Pi 4's own pin→stamp delay is
-the next measurement (reverse pairing or the Pico TIC), and until then the two boards' NTP
-view of each other (the Pi 5 reads the Pi 4 ~1.6 µs ahead after the +1.8 µs move) is a
-software-timestamp asymmetry number, not a clock disagreement.
+see `docs/PI5.md`); not a distribution guide. The Pi 5 pin→entry delay is paired against
+the Pi 4's clock at 1.8 ± 0.25 µs (2026-09-08, write-flight split). Reverse pairing of the
+Pi 4 on the Pi 5's clock (2026-09-09, userspace echo) gives 0.75–1.18 µs ±0.2 µs (p1 to
+median); the 850 ns loopback constant in service sits inside that span and has not been
+updated. Neither figure is GPS-traceable. The Pi 5's NTP view of the Pi 4 (~1.6 µs ahead
+after the +1.8 µs move) is a software-timestamp asymmetry number, not a clock disagreement.
 
 ### License
 

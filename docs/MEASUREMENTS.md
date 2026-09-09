@@ -5,7 +5,7 @@ Two metric families are used in this file. The Pi 4 section (2026-08) uses `sudo
 RETRACTION-float-ulp.md); its stock-kernel baseline, σ ≈ 437 ns on 7.1.8-rt (2026-08-27), is the first
 rung of the README ladder and comes from the same window method, but that window was not
 archived in this repo; the earliest archived window is `data/windows/pps-control-cpu0-20260829.log`
-(entry-stamp kernel, CPU0, σ 313 ns / scaled MAD 374 ns per `tools/pps_stats.py`). The Pi 5 section (2026-09)
+(entry-stamp kernel, CPU0, σ 313 ns / scaled MAD 268 ns per `tools/pps_stats.py`). The Pi 5 section (2026-09)
 and every cross-board comparison use chrony's own logs: `refclocks.log` per-pulse offsets
 summarised as robust SD (1.4826 × MAD), and `statistics.log` `Std dev'n`. The two families
 are not interchangeable; the 7.4 ns cross-board figure is the robust-SD family. Raw Pi 4
@@ -19,7 +19,7 @@ windows in `data/windows/`.
 | CPU0 control | old boot | 313 | 268 | 582 | 1,920 | 7.3% |
 | CPU0 control | iso boot | 260 | 123 | 368 | 3,464 | 1.5% |
 | **steered CPU2, isolated** | iso boot | **130** | 148 | 208 | 561 | 0.3% |
-| **+ pps_prewarm armed** | iso boot | **13.4** | **11.1** | **23** | **96** | **0%** |
+| **+ pps_prewarm armed** | iso boot | **13.4** | **10.4** | **23** | **96** | **0%** |
 | 7.1.12 validation (in-kernel steer) | k12 boot | 13.1 | 10.4 | 28 | 134 | 0% |
 | nohz_full=2,3 variant | nohz boot | 65.8 | 10.4 | 29 | 963 | 0.4% |
 
@@ -58,7 +58,8 @@ chrony: Std Dev 216 → 183 → ~140 → 43 → 6 → **3 ns** (QPPS), RMS offse
 ±0.03 ns. ADEV: instrument wall ×29 lower at every τ; instrument/oscillator crossover
 ~300 s; disciplined-OCXO basin **1.7–2.3×10⁻¹¹ @ 20–60 min** resolved for the first
 time (the previously-believed 1e-10 "hardware floor" was instrument fog — 5.9× off).
-Illustrated summary: `report.html`.
+The ADEV figures come from a pipeline not yet imported into this tree and are not reproduced
+here (roadmap item). Illustrated summary: `report.html`.
 
 ---
 
@@ -189,7 +190,8 @@ contains the restart transient and is excluded; 15h is partial). Hourly chrony 3
 raw robust 7.4 every hour, raw SD 6.3–8.8, |max| 30–50 ns typical, 2 pulses > 100 ns (245,
 112), 0 > 1 µs; SoC 52.5 → 47 °C with no correlation. Warmer counter at the read: 58,856 shots,
 0 misses, loop mean 1.96 µs — wall-clock since the 22:58 UTC boot, not the residual series.
-Pi 4 in the same 24 h: 5.0 / 4.5 ns, raw robust 7.4, 3 pulses > 1 µs. Archive:
+Pi 4 in the same 24 h: 5.0 / 4.5 ns, raw robust 7.4, 3 pulses > 1 µs (a live read of .17's logs; not
+archived in this tree). Archive:
 `data/pi5/soak-20260908-*.tgz`.
 
 ## qErr predictor, live drop tests (09-08, Pacific 11:07–12:52)
@@ -341,10 +343,11 @@ difference inside one clock, `d4 = (t23 − a5) − (w4 − a4) − L5 − f4 �
 entry→leaf mean, SD 90 ns; the line-event stamp is a leaf stamp), f4 = 120 ns (looptest bound ≤ 173),
 c = 5 ns. 721 paired seconds: interval median **3519 ns**, p1 3092, p10 3203, p90 4055; the distribution is
 right-skewed and correlates with the Pi 4's userspace wake latency (r = 0.31), i.e. the Pi 4 write path
-under load is the scatter, not the Pi 5. **d4 = 1181 ns (median) / 981 ns (p1, clean path)**, systematic
-±0.2 µs. The 850 ns loopback constant the Pi 4 runs with is therefore low by 0.1–0.35 µs, so .17 sits that
-far behind GPS — small, and opposite in sign to the 1.6 µs by which .17 reads *ahead* over NTP, which
-confirms the NTP residue is the Pi 4's software-timestamp asymmetry. Both boards' raw asserts sat where
+under load is the scatter, not the Pi 5. **d4 = 1181 ns (median) / 754 ns (p1)**, systematic ±0.2 µs (L5
+applicability, f4); the L5 dmesg line is archived beside the logs. The 850 ns loopback constant the Pi 4 runs
+with sits inside that span (0.33 µs below the median, 0.10 µs above p1), so the reverse run neither confirms
+nor moves it; whatever the true value, it is far from the 1.6 µs by which .17 reads *ahead* over NTP, and of
+the wrong sign to explain it, which confirms the NTP residue is the Pi 4's software-timestamp asymmetry. Both boards' raw asserts sat where
 their constants say during the run (Pi 4 +851 ns, robust SD 7.4; Pi 5 +1799 ns, SD 11.9). Not applied to
 .17; a kernel-side pulse on the Pi 4 (or the Pico) would remove the f4 term and settle the last 0.2 µs.
 Logs: `data/pi4/results/reverse-tic-20260909/`.

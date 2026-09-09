@@ -3,8 +3,7 @@
 `pps_pico.c` + `ppscap.pio`: the Pico's XIN is fed the OCXO-derived **25 MHz** (crystal removed
 later), PLL_SYS makes clk_sys = 200 MHz exactly, a PIO down-counter snapshots the PPS edge on
 GP2 at 2-cycle resolution (10 ns), results go out on UART (GP0), and GP21 outputs clk_sys/8 =
-25 MHz for a zero-beat check against the OCXO. Design and bring-up gates: the PICO-PPS-PLAN
-notes; adversarial review of the RP2040 build: `docs/review/PICO-FW-REVIEW.md`.
+25 MHz for a zero-beat check against the OCXO. Design and bring-up gates: `docs/PICO-PPS-PLAN.md`; adversarial review of the RP2040 build: `docs/review/PICO-FW-REVIEW.md`.
 
 ## Two boards, two UF2s
 
