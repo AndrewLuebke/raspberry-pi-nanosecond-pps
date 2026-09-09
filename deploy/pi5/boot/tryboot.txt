@@ -52,7 +52,7 @@ dtoverlay=dwc2,dr_mode=host
 dtoverlay=nospi10
 
 [all]
-kernel=kernel-73rc1-rp1ts.img
+kernel=kernel-73rc2-rp1ts2.img
 dtoverlay=disable-bt
 dtparam=uart0=on
 dtoverlay=pps-gpio,gpiopin=18

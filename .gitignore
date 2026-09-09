@@ -1,4 +1,9 @@
-data/*.err
-*.ko
 __pycache__/
 *.pyc
+*.o
+*.ko
+*.mod
+*.mod.c
+*.cmd
+.*.swp
+*~

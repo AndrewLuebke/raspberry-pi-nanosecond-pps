@@ -1,0 +1,2 @@
+pps-gpio: entry->leaf delta: n=66600 mean=2213 min=1986 max=7037 sumsq=326701506342 missing=0 neg=0 stale=0 use_early=1   # dmesg on .18 (7.3.0-rc2 v3 image), read ~16:05 PDT 2026-09-09 before the run; L5 = mean
+pps-gpio: entry->leaf delta: n=69600 mean=2217 min=1986 max=7037 sumsq=342649848676 missing=0 neg=0 stale=0 use_early=1   # same, ~17:00 PDT after the run
