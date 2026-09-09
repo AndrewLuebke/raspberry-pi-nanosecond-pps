@@ -24,6 +24,10 @@ target_compile_definitions(pps_pico PRIVATE
     PLL_USB_POSTDIV2=5
 )
 
+if(DEFINED SYS_MHZ)
+    target_compile_definitions(pps_pico PRIVATE SYS_MHZ=${SYS_MHZ})   # 200 (default) or 150
+endif()
+
 target_link_libraries(pps_pico pico_stdlib hardware_pio hardware_pll
                       hardware_clocks hardware_vreg hardware_uart)
 pico_add_extra_outputs(pps_pico)

@@ -2,7 +2,7 @@
  *
  * Clock: external 25 MHz (Pi Ethernet-PHY tap, OCXO-derived) into XIN
  * (crystal removed, XOUT floating). PLL_SYS: REFDIV 1, VCO 1200 MHz,
- * postdiv 3x2 -> clk_sys 200 MHz exactly (build with XOSC_MHZ=25).
+ * postdiv 3x2 -> clk_sys 200 MHz exactly (build with XOSC_MHZ=25); -DSYS_MHZ=150 for the rated speed (/4 /2).
  * vreg to 1.15 V before the jump, per plan §11.
  *
  * Capture: PIO free-running down-counter, rising-edge snapshot on GP2
@@ -37,21 +37,27 @@
 #define PPS_GPIO      2
 #define UART_TX_GPIO  0
 #define UART_BAUD     921600
-#define CLKOUT_GPIO   21          /* clk_sys/8 = 25 MHz, zero-beat check */
-#define CLK_SYS_HZ    200000000u
+#define CLKOUT_GPIO   21          /* clk_sys/CLKOUT_DIV = 25 MHz, zero-beat check */
+#ifndef SYS_MHZ
+#define SYS_MHZ       200         /* 200 = 10 ns ticks (RP2350 overclock at 1.15 V); -DSYS_MHZ=150 = rated, 13.3 ns ticks */
+#endif
+#define CLK_SYS_HZ    (SYS_MHZ * 1000000u)
+#define PLL_POSTDIV1  (1200 / (SYS_MHZ * 2))       /* VCO 1200 MHz, postdiv2 = 2: 200 -> /3, 150 -> /4 */
+#define CLKOUT_DIV    (SYS_MHZ / 25)               /* GP21 = clk_sys / CLKOUT_DIV = 25 MHz: 8 or 6 */
 #define TICK_CYCLES   2u          /* PIO loop length */
-#define TICKS_PER_SEC (CLK_SYS_HZ / TICK_CYCLES)   /* 100,000,000 */
+#define TICKS_PER_SEC (CLK_SYS_HZ / TICK_CYCLES)   /* 100,000,000 at 200 MHz, 75,000,000 at 150 */
+_Static_assert(1200 % (SYS_MHZ * 2) == 0 && SYS_MHZ % 25 == 0 && PLL_POSTDIV1 >= 2 && PLL_POSTDIV1 <= 7, "SYS_MHZ must be 200 or 150 (VCO 1200 MHz, GP21 = 25 MHz)");
 
 static void clocks_from_ocxo_25mhz(void) {
     vreg_set_voltage(VREG_VOLTAGE_1_15);
     sleep_ms(2);
     /* XOSC already running the chip via the SDK runtime init (XOSC_MHZ=25
      * makes crt0/clocks_init use the right timings). Re-derive PLL_SYS:
-     * 25 MHz -> VCO 1200 MHz (FBDIV 48) -> /3 /2 = 200 MHz. */
+     * 25 MHz -> VCO 1200 MHz (FBDIV 48) -> /PLL_POSTDIV1 /2 = SYS_MHZ. */
     clock_configure(clk_sys, CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLK_REF,
                     0, 25 * MHZ, 25 * MHZ);      /* park sys on ref */
     pll_deinit(pll_sys);
-    pll_init(pll_sys, 1, 1200 * MHZ, 3, 2);
+    pll_init(pll_sys, 1, 1200 * MHZ, PLL_POSTDIV1, 2);
     clock_configure(clk_sys, CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLKSRC_CLK_SYS_AUX,
                     CLOCKS_CLK_SYS_CTRL_AUXSRC_VALUE_CLKSRC_PLL_SYS,
                     CLK_SYS_HZ, CLK_SYS_HZ);
@@ -60,7 +66,7 @@ static void clocks_from_ocxo_25mhz(void) {
                     CLK_SYS_HZ, CLK_SYS_HZ);
     /* scope check: clk_sys/8 = 25 MHz on CLKOUT_GPIO -> overlay on the
      * PHY tap for a TRUE zero-beat lock check (review suggestion). */
-    clock_gpio_init(CLKOUT_GPIO, CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_VALUE_CLK_SYS, 8);
+    clock_gpio_init(CLKOUT_GPIO, CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_VALUE_CLK_SYS, CLKOUT_DIV);
 }
 
 static PIO pio = pio0;
@@ -126,7 +132,8 @@ int main(void) {
 
     gpio_init(PPS_GPIO);
     gpio_set_dir(PPS_GPIO, false);
-    gpio_pull_down(PPS_GPIO);     /* defined level if lead disconnected */
+    gpio_disable_pulls(PPS_GPIO); /* RP2350-E9: the internal pull-down can latch ~2.1 V on an input;
+                                   * fit an EXTERNAL <= 8.2 kOhm to GND on GP2 for a defined idle level */
 
     uint offset = pio_add_program(pio, &ppscap_program);
     sm = pio_claim_unused_sm(pio, true);
@@ -138,7 +145,7 @@ int main(void) {
     pio_sm_init(pio, sm, offset, &c);
     /* start counting only with PPS low: a pin-high start would emit one
      * bogus W (X still 0xFFFFFFFF) and drop that pulse. Review §4.4. */
-    while (gpio_get(PPS_GPIO)) tight_loop_contents();
+    for (int i = 0; i < 3000 && gpio_get(PPS_GPIO); i++) sleep_ms(1);   /* bounded: a stuck-high lead must not hang boot */
     pio_sm_set_enabled(pio, sm, true);
 
     drain_loop();
