@@ -269,6 +269,17 @@ Across all four takes the natural loss rate on the LAN was zero; the machinery i
 the day it is not.
 
 
+## rc2 kernel rebuild, tryboot and promotion (09-08, Pacific 18:43–19:45)
+
+`rpi-7.3.y` moved to rc2 (`f6456d3b4`); both patch sets applied without offsets and a full
+build took four minutes. Tryboot at 18:43, back in 65 s, stack verified (entry stamp on, warmer
+firing, IRQs on CPU2, ASPM off, QPPS selected). After 58 minutes on rc2, through a busy hour of
+logins, the calibration-wire run and the Pico work: PCIe status read 990 ns mean (unchanged),
+entry-to-leaf 2.29 µs (unchanged), warmer loop 2.1 µs (2.0 on rc1), raw robust 7.4–8.9 ns per
+hour, chrony RMS 1.5 ns, soak Std Dev 2.1–5.1 ns. Promoted at 19:45 (`config.txt` → rc2, the v3
+entry-pulse image staged as the next tryboot). A 16k-page build of the same tree is ready as the
+following single-variable experiment; every kernel so far has been 4k.
+
 ## Delivery calibration wire, first pairing (09-08, Pacific 19:23–19:33)
 
 Pi 5 GPIO23 (header pin 16, made a RIO output and selected with `rp1_pps_debug_gpio=23`; the
