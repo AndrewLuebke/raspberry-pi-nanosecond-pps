@@ -269,6 +269,30 @@ Across all four takes the natural loss rate on the LAN was zero; the machinery i
 the day it is not.
 
 
+## Delivery calibration wire, first pairing (09-08, Pacific 19:23–19:33)
+
+Pi 5 GPIO23 (header pin 16, made a RIO output and selected with `rp1_pps_debug_gpio=23`; the
+ends of the wire landed swapped from the plan, so the roles were swapped in software) → Pi 4
+GPIO22 (pin 15, a runtime `dtoverlay pps-gpio gpiopin=22`, device `pps@16`), grounds on pin 25.
+`tools/tic-pair.py` on the Pi 4 pairs each pulse with the same second's GPS edge.
+
+Two lessons before a number: (1) with the Pi 4's entry stamp on, the second pps-gpio instance
+adopts the GPS pulse's entry stamp (the 50 µs staleness guard accepts a pulse 1–3 µs later), so
+every interval read exactly −990 ns; the run was repeated with `use_early=0` on the Pi 4 for ten
+minutes (both instances leaf-stamped, the per-instance leaf delay cancels in the mean; chrony on
+the Pi 4 slewed ~1 µs and back). (2) The v2 patch emits the pulse *after* the PCIe status read,
+gated on the GPIO18 bit, so the pulse carries the ~1.0 µs read plus the posted-write flight.
+
+Result, n = 601: pulse arrives **3.39 µs** after the GPS edge on the Pi 4's clock (median 3388,
+mean 3399, robust SD 246, p10/p90 3111/3703 ns; `data/pi5/results/tic-pair-run2-20260908.txt`).
+Subtracting the status read (0.99 µs measured) leaves 2.4 µs for entry delay plus write flight;
+the warmer's own loop (drive → entry, 1.96 µs) is write flight plus entry delay from the other
+side, so the entry delay is bracketed at roughly **1.5–1.9 µs** with ~0.4 µs unresolved between the
+two measurements (the Pi 4's two leaf delays and the two RP1 write paths are assumed equal).
+Next: emit the pulse unconditionally at handler entry, before the read (a one-line change), rerun,
+then set the Pi 5 feeder's `DELIVERY_NS`. The Pi 5 is currently that far behind GPS in absolute
+terms; the fleet follows it.
+
 ## qErr predictor on the Pi 4 feeder (09-08, Pacific 13:38–14:07)
 
 Same predictor ported to `daemon/qpps-shm.py` (gpsd-fed; the test hook withholds TIM-TP values
