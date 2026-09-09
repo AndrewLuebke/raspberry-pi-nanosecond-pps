@@ -92,7 +92,7 @@ published next to every chrony number for that reason.
 **A Raspberry Pi 4 (OCXO-injected clock, RT kernel) timestamping GPS PPS at σ = 13.4 ns per
 pulse (`ppstest` sample SD), with chrony steering at 1–2 ns RMS** — about 33× below the
 437 ns per pulse measured on the same board with a stock kernel in the same metric (the
-community's "~1 µs floor" for Pi GPIO timing is of that order), achieved in software on
+"~1 µs floor" commonly quoted for Pi GPIO timing, unsourced, is of that order; our own stock-kernel window was 437 ns σ), achieved in software on
 OCXO-grafted RT hardware over one weekend (2026-08-29/30) on a lab stratum-1 NTP server.
 
 | stage (cumulative) | per-pulse σ | chrony filtered Std Dev |
