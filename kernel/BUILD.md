@@ -49,9 +49,11 @@ Gotchas learned the hard way:
 
 # Pi 5 (BCM2712 + RP1): entry-stamp kernel
 
-Branch `rpi-7.3.y` (snapshot of 2026-09-01, 7.3.0-rc1; PREEMPT_RT is native there and the
-`pps-gpio` hardirq/thread split is in-tree). Two kernel patches plus the `pps_warm` module,
-applied in this order:
+Branch `rpi-7.3.y` (first built from the 2026-09-01 snapshot, 7.3.0-rc1; rebuilt 2026-09-08 on
+rc2, commit `f6456d3b4`, where both patches apply without offsets — the "7.3rc1" in the file
+names is where they were written, not a limit; PREEMPT_RT is native there and the `pps-gpio`
+hardirq/thread split is in-tree). Two kernel patches plus the `pps_warm` module, applied in
+this order:
 
 1. `pps-timing-patches-7.3rc1.diff` — the Pi 4 entry-stamp (pinctrl-bcm2835) + the
    `pps-gpio` `use_early` consumer with its 50 µs staleness guard and delta statistics.
@@ -87,7 +89,19 @@ point `tryboot.txt`'s `kernel=` at the image; `sudo reboot "0 tryboot"`; verify
 (`deploy/pi5/` and `tools/pi5-experiments/post-reboot-check.sh`); promote with
 `deploy/pi5/promote-rp1ts2.sh`. Config: seed from the target's known-good config and run
 `olddefconfig` (the `.config` that built the running kernel lives in the build tree; keep it).
-A rebuild after editing only the patched files is incremental and takes well under a minute.
+A rebuild after editing only the patched files is incremental and takes well under a minute;
+a fresh shallow clone (`git clone --depth=1 -b rpi-7.3.y …`) plus a full build is about four
+minutes on the 112-thread host (`tools/pi5-experiments/build-rp1ts2-rc2.sh` is the exact
+script used for the rc2 rebuild).
+
+Page size: every 7.3 kernel in this project so far is **4k pages** (`-v8-rt`), because the
+config descends from the `kernel8_rt.img` RT builds, i.e. the `bcm2711_defconfig` line that
+also runs on a Pi 5. Pi OS's own Pi 5 kernel (`kernel_2712.img`, `bcm2712_defconfig`) is 16k.
+In the rc2 tree the two defconfigs differ in exactly that: `ARM64_16K_PAGES` + `VA_BITS_47`
+(and the derived `ARCH_MMAP_RND_BITS`), plus `SERIAL_RPI_FW` dropped — there are no other
+"2712 options". A 16k variant (`-v8-16k-rt`, same tree, same patches, only the page size and VA
+bits changed, `tools/pi5-experiments/build-rp1ts2-rc2-16k.sh`) is built as a separate one-variable
+tryboot experiment; results in `docs/MEASUREMENTS.md` when run.
 
 Gotchas: `arch_timer_get_rate()` is not exported to modules — use `arch_timer_get_cntfrq()`;
 `hrtimer_setup()` replaces `hrtimer_init()` on this branch; IRQ threads carry

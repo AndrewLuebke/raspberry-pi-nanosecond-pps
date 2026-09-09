@@ -252,3 +252,16 @@ skipped pulse. Live result with induced drops (12 min per gap, one gap every 30 
 QPPS raw per-pulse statistics during every drop phase matched the no-drop control (robust 5.9–7.4,
 p99 14–17 ns, no pulse over 100 ns), and chrony's residual stayed 3.2–3.8 ns. The receiver's clock
 drift field (~430 ns/s) is not the sawtooth slope and must not be fed to the predictor.
+
+Then the better idea, from Andrew's question about the boundary: stop guessing. A lost datagram's
+truth arrives about 75 ms after the pulse in the next datagram's four-pair window, so v4 of the
+feeder holds the pulse and publishes it late with the real qErr. Nothing is being corrected after
+the fact: the QPPS refclock only ever sees what the feeder writes, so a held pulse is an empty
+slot being filled, and chrony accepts an SHM sample up to 2^(poll+1) = 8 s old, placing it on the
+filter's time axis by the pulse's own timestamp. The predictor remains only as the fallback for
+four or more consecutive losses. Two things the drop test taught: SHM needs a queue with a
+`valid`-flag handshake (chrony clears the flag when it consumes, every 250 ms, and two samples
+due at once would otherwise overwrite each other), and chrony's filter rejects any sample older
+than the newest it holds, so the decision about a lost second has to be taken the moment the
+window passes it, before later seconds are released late; the first cut published its
+predictions at pulse N+4 and lost all 47 of them silently. Results in `docs/MEASUREMENTS.md`.

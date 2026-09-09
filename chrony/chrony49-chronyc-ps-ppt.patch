@@ -1,0 +1,200 @@
+chronyc display resolution: picoseconds and ppt, auto-scaled units (chrony 4.9)
+
+Companion to chrony49-tracking-ppt.patch. chronyc rounds the daemon's numbers away:
+tracking shows offsets at 9 decimals (ns) and frequencies at 3 (ppb); sources/sourcestats
+print whole nanoseconds. The command protocol's Float carries a 25-bit coefficient
+(~7 significant digits), so the hidden digits are real: a 3.6e-9 s offset is exact to
+~2e-16 s, residual freq and skew to ~1e-10 ppm.
+
+- tracking: times and frequencies print with an auto-scaled unit instead of a fixed
+  column of zeroes -- whole picoseconds below 1 ns, then three decimals of ns/us/ms/s;
+  whole ppt below 1 ppb, then three decimals of ppb/ppm:
+      System time     : 118 ps slow of NTP time
+      Last offset     : -460 ps
+      RMS offset      : 1.342 ns
+      Frequency       : 56.465 ppb slow
+      Residual freq   : -2 ppt
+      Skew            : 312 ppt
+      Root dispersion : 6.057 us
+- sources / sourcestats / selectdata (fixed-width tables): values under 10 ns print in
+  picoseconds ("-1463ps[-1895ps]", "Std Dev 5236ps") in the same column width; the
+  frequency columns carry a unit in the same 10 characters ("   -2ppt", "+56.47ppb",
+  " +7.475ppm").
+- CSV mode (-c) stays numeric: seconds at 12 decimals, ppm at 6.
+Parsers that assume an "ns" suffix must accept "ps" (deploy/pi5/pps-soaklog.sh does).
+
+--- a/client.c	2026-09-08 15:36:29.372722187 -0700
++++ b/client.c	2026-09-08 15:40:48.438879859 -0700
+@@ -1656,7 +1656,9 @@
+ {
+   s = fabs(s);
+ 
+-  if (s < 9999.5e-9) {
++  if (s < 9999.5e-12) {
++    printf("%4.0fps", s * 1e12);
++  } else if (s < 9999.5e-9) {
+     printf("%4.0fns", s * 1e9);
+   } else if (s < 9999.5e-6) {
+     printf("%4.0fus", s * 1e6);
+@@ -1686,7 +1688,9 @@
+ 
+   x = fabs(s);
+ 
+-  if (x < 9999.5e-9) {
++  if (x < 9999.5e-12) {
++    printf("%+5.0fps", s * 1e12);
++  } else if (x < 9999.5e-9) {
+     printf("%+5.0fns", s * 1e9);
+   } else if (x < 9999.5e-6) {
+     printf("%+5.0fus", s * 1e6);
+@@ -1712,10 +1716,16 @@
+ static void
+ print_freq_ppm(double f)
+ {
+-  if (fabs(f) < 99999.5) {
+-    printf("%10.3f", f);
++  double x = fabs(f);
++
++  if (x < 999.5e-6) {
++    printf("%7.0fppt", f * 1e6);
++  } else if (x < 999.5e-3) {
++    printf("%7.2fppb", f * 1e3);
++  } else if (x < 99999.5) {
++    printf("%7.3fppm", f);
+   } else {
+-    printf("%10.0f", f);
++    printf("%7.0fppm", f);
+   }
+ }
+ 
+@@ -1724,10 +1734,58 @@
+ static void
+ print_signed_freq_ppm(double f)
+ {
+-  if (fabs(f) < 99999.5) {
+-    printf("%+10.3f", f);
++  double x = fabs(f);
++
++  if (x < 999.5e-6) {
++    printf("%+7.0fppt", f * 1e6);
++  } else if (x < 999.5e-3) {
++    printf("%+7.2fppb", f * 1e3);
++  } else if (x < 99999.5) {
++    printf("%+7.3fppm", f);
+   } else {
+-    printf("%+10.0f", f);
++    printf("%+7.0fppm", f);
++  }
++}
++
++/* ================================================== */
++
++/* Report-line time with an auto-scaled unit: whole picoseconds, then three
++   decimals of ns/us/ms/s (the command protocol carries ~7 significant digits) */
++
++static void
++print_time_human(double s, int sign)
++{
++  double x = fabs(s);
++
++  if (x < 999.5e-12) {
++    printf(sign ? "%+.0f ps" : "%.0f ps", s * 1e12);
++  } else if (x < 999.5e-9) {
++    printf(sign ? "%+.3f ns" : "%.3f ns", s * 1e9);
++  } else if (x < 999.5e-6) {
++    printf(sign ? "%+.3f us" : "%.3f us", s * 1e6);
++  } else if (x < 999.5e-3) {
++    printf(sign ? "%+.3f ms" : "%.3f ms", s * 1e3);
++  } else {
++    printf(sign ? "%+.3f s" : "%.3f s", s);
++  }
++}
++
++/* ================================================== */
++
++/* Report-line frequency with an auto-scaled unit: whole ppt, then three
++   decimals of ppb/ppm */
++
++static void
++print_freq_human(double f, int sign)
++{
++  double x = fabs(f);
++
++  if (x < 999.5e-6) {
++    printf(sign ? "%+.0f ppt" : "%.0f ppt", f * 1e6);
++  } else if (x < 999.5e-3) {
++    printf(sign ? "%+.3f ppb" : "%.3f ppb", f * 1e3);
++  } else {
++    printf(sign ? "%+.3f ppm" : "%.3f ppm", f);
+   }
+ }
+ 
+@@ -1847,13 +1905,15 @@
+           spec = 'd';
+           break;
+         case 'F':
++        case 'G':
+         case 'P':
+-          prec = 3;
++          prec = 6;
+           spec = 'f';
+           break;
++        case 'H':
+         case 'O':
+         case 'S':
+-          prec = 9;
++          prec = 12;
+           spec = 'f';
+           break;
+         case 'I':
+@@ -1874,12 +1934,22 @@
+         integer = va_arg(ap, int);
+         print_clientlog_interval(integer);
+         break;
+-      case 'F': /* absolute frequency in ppm with fast/slow keyword */
+-      case 'O': /* absolute offset in seconds with fast/slow keyword */
++      case 'F': /* absolute frequency with auto unit and fast/slow keyword */
++      case 'O': /* absolute offset with auto unit and fast/slow keyword */
++        dbl = va_arg(ap, double);
++        if (spec == 'O')
++          print_time_human(fabs(dbl), 0);
++        else
++          print_freq_human(fabs(dbl), 0);
++        printf(" %s", (dbl > 0.0) ^ (spec != 'O') ? "slow" : "fast");
++        break;
++      case 'G': /* frequency with auto unit (ppt/ppb/ppm) */
++        dbl = va_arg(ap, double);
++        print_freq_human(dbl, sign);
++        break;
++      case 'H': /* time with auto unit (ps/ns/us/ms/s) */
+         dbl = va_arg(ap, double);
+-        printf("%*.*f %s %s", width, prec, fabs(dbl),
+-               spec == 'O' ? "seconds" : "ppm",
+-               (dbl > 0.0) ^ (spec != 'O') ? "slow" : "fast");
++        print_time_human(dbl, sign);
+         break;
+       case 'I': /* uint32_t interval with unit */
+         uinteger32 = va_arg(ap, uint32_t);
+@@ -2333,14 +2403,14 @@
+   print_report("Reference ID    : %R (%s)\n"
+                "Stratum         : %u\n"
+                "Ref time (UTC)  : %T\n"
+-               "System time     : %.9O of NTP time\n"
+-               "Last offset     : %+.9f seconds\n"
+-               "RMS offset      : %.9f seconds\n"
+-               "Frequency       : %.3F\n"
+-               "Residual freq   : %+.3f ppm\n"
+-               "Skew            : %.3f ppm\n"
+-               "Root delay      : %.9f seconds\n"
+-               "Root dispersion : %.9f seconds\n"
++               "System time     : %O of NTP time\n"
++               "Last offset     : %+H\n"
++               "RMS offset      : %H\n"
++               "Frequency       : %F\n"
++               "Residual freq   : %+G\n"
++               "Skew            : %G\n"
++               "Root delay      : %H\n"
++               "Root dispersion : %H\n"
+                "Update interval : %.1f seconds\n"
+                "Leap status     : %L\n",
+                ref_id, name,

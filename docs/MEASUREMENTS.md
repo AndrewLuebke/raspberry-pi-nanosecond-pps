@@ -202,6 +202,73 @@ MAX_GAP 4, skip instead of qErr=0): see the table in PI5.md; zero published > 3 
 raw p99 14–17 ns in every phase vs 15 in the control; chrony residual 3.2–3.8. Result files:
 `data/pi5/results/droptest-results.txt`, `droptest3-results.txt`.
 
+## Pi 5 feeder v4, hold for the late qErr (09-08, Pacific 15:23–15:58 and 16:01–16:22)
+
+Design: a pulse whose qErr is missing is held instead of predicted; the next datagram's
+four-pair window brings the true value ~75 ms later and the pulse is published late with it
+(chrony accepts an SHM sample up to 2^(poll+1) = 8 s old and places it by its own timestamp).
+SHM writes go through a queue with a `valid`-flag handshake so two samples due at once are
+written one per chrony consume. Predictor (v3) only as a fallback for ≥ 4 consecutive losses.
+Test: every 10th window of K consecutive datagrams withheld (K = 1, 2, 4), 10 min each, then clean;
+cross-check = the held seconds must appear as QPPS raw samples in `refclocks.log`.
+
+Take 1 (v4.0), `data/pi5/results/v4-droptest-results.txt`:
+
+| phase | late publishes | age (ms) min / med / p90 / max | accepted by chrony | QPPS Std Dev |
+|---|---|---|---|---|
+| K=1 | 60 | 68 / 78 / 84 / 91 | 60 / 60 | 3.48 ns |
+| K=2 | 120 | 73 / 583 / 1088 / 1093 | 120 / 120 | 3.20 ns |
+| K=4 | 180 late + 60 predicted (47 published, 13 cut-skipped) | 72 / 1080 / 2082 / 2087 | 180 / 180 late, **0 / 47 predicted** | 3.17 ns |
+| clean | — | — | 300 / 300 seconds | 3.64 ns |
+
+The late path is clean: 360 of 360 late samples accepted, no queue overwrite or overflow,
+maximum handshake wait 250 ms (one chrony consume). The predictions were all rejected:
+chrony's sample filter refuses a sample whose time is not later than the newest one it holds
+(`samplefilt.c`, "non-increasing sample time"), and v4.0 decided a lost second only at pulse
+N+4, after N+1..N+3 had already gone in late. The linear error of those predictions was fine
+(mean 0.18, max 0.56 ns), they simply never reached the filter. v4.2 decides a lost second the
+moment a datagram's window has moved past it, before the later seconds of the same datagram are
+released, and queues an expired hold before the current pulse.
+
+Take 2 (v4.2, Pacific 16:01–16:22; K=2 5 min, K=4 10 min, clean 5 min):
+
+| phase | late publishes | age (ms) med / max | accepted | predictions | QPPS Std Dev |
+|---|---|---|---|---|---|
+| K=2 | 60 | 580 / 1087 | 60 / 60 | — | 3.23 ns |
+| K=4 | 180 | 1078 / 2088 | 180 / 180 | 36 logged: 28 published (28 / 28 accepted, 0 out of order, linear error mean 0.18 max 0.52 ns), 8 cut-skipped; **24 unpublished** | 4.06 ns |
+| clean | — | — | 300 / 300 | — | 3.44 ns |
+
+The ordering fix holds. The 24 unpublished lost seconds were the predictor's slope sanity cap
+(2.5 ns/s): the sawtooth slope rose through 2.2 ns/s during the phase and past the cap. The
+physical bound is half a period per second (3.93 ns/s, beyond which a step aliases), so v4.3
+raises the cap to 3.5. v4.3 also closes the review finding that a batch decided under the
+table lock but queued after it could still be interleaved by the other thread (decisions and
+queueing now share one critical section).
+
+Take 3 (v4.3, Pacific 16:24–16:45) exercised the one path the drop hook cannot: the
+forwarder on the Pi 4 stopped for 12 s, twice. Predictions filled the first four lost
+seconds (gaps 1–4, one cut-skipped), the rest stayed unpublished (9 per outage: the
+forwarder's four-pair window is process state and rebuilds from one pair after a restart,
+so the seconds just before recovery have no truth either), and chrony's accepted sequence
+stayed strictly increasing throughout; 142 of 161 seconds published, QPPS Std Dev 3.10 ns.
+(The take-3 drop phases were void: a quoting slip in the driver never wrote the drop file;
+the analyzer's first strict-order check also counted chrony's per-poll filtered lines and
+had to be restricted to raw samples.)
+
+Take 4 (v4.3, Pacific 16:46–17:00, corrected driver; K=4 5 min, K=5 5 min, clean 3 min):
+
+| phase | late publishes | age (ms) med / max | accepted | predictions | strict order | QPPS Std Dev |
+|---|---|---|---|---|---|---|
+| K=4 | 90 | 1078 / 2090 | 90 / 90 | 28: 23 published (23 / 23 accepted, linear error mean 0.18 max 0.58 ns), 5 cut-skipped | yes | 3.13 ns |
+| K=5 | 90 | 1086 / 2094 | 90 / 90 | 60 (two per window): 51 published (51 / 51 accepted, mean 0.23 max 0.68 ns), 9 cut-skipped | yes | 3.41 ns |
+| clean | — | — | 180 / 180 | — | yes | 3.27 ns |
+
+No queue overwrite, overflow, or age drop in any take; the handshake never waited longer
+than one chrony consume (250 ms). This is the shipped feeder (`daemon/qpps-shm-peer.py`).
+Across all four takes the natural loss rate on the LAN was zero; the machinery is there for
+the day it is not.
+
+
 ## qErr predictor on the Pi 4 feeder (09-08, Pacific 13:38–14:07)
 
 Same predictor ported to `daemon/qpps-shm.py` (gpsd-fed; the test hook withholds TIM-TP values

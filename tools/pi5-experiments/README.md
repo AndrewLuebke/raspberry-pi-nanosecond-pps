@@ -20,4 +20,6 @@ as installable software.
 | `batch2-run.sh`, `batch3-run.sh` | watch-class load, NTP 10–1000 req/s, DRAM w/o warmer; core locality, read hog, SD DMA, iperf3, thermal burn, stress-ng taxonomy |
 | `ntpmax-run.sh`, `ntpmax2-run.sh` | NTP serving ceiling 10k–400k req/s, with and without `hwtimestamp` |
 | `post-reboot-check.sh`, `deploy-rp1ts*.sh`, `build-rp1ts*.sh` | stack verification, tryboot deploy, incremental kernel builds on the build host |
+| `build-rp1ts2-rc2.sh`, `deploy-rc2.sh` | fresh shallow clone of `rpi-7.3.y` (rc2) + full build with both patch sets and the warmer module; tryboot staging of that kernel on the Pi 5 |
+| `qpps-v4-droptest.sh`, `qpps-v4-droptest2.sh`, `qpps-v4-droptest3.sh`, `qpps-v4-droptest4.sh`, `qpps-v4-analyze.py` | v4 feeder (hold for the late qErr) tests: single/double/quad/five consecutive datagram loss via the drop hook (1, 2, 4 run on the Pi; 3 and 4 drive it from the workstation), the forwarder silenced on the Pi 4 (3), then clean; per-phase LATE/PRED stats, refclocks.log cross-check, strict time-order check of what chrony accepted |
 | `loadtest-analyze.py` | first-generation phase analyser (superseded by `tools/phase-analyze.py`) |

@@ -1,0 +1,81 @@
+From 766fae575538537260fdbe9d115fff21b58f0001 Mon Sep 17 00:00:00 2001
+From: Andrew Luebke <andrew.luebke@gmail.com>
+Date: Tue, 8 Sep 2026 15:51:29 -0700
+Subject: [PATCH] reference: log frequency and skew with 6 decimal places
+
+The frequency and skew columns of tracking.log are printed with %10.3f,
+i.e. with a resolution of 0.001 ppm. They are the only %f fields in the
+log; the other floating-point columns already use %e and keep three
+significant digits at any magnitude.
+
+With a PPS reference clock the estimated skew is often below 0.001 ppm,
+so both columns stick at 0.000, or step in 0.001s, although the daemon
+has more resolution: the drift file already writes the same two values
+with %20.6f (ppm) and MIN_SKEW is 1e-12, i.e. 0.000001 ppm.
+
+Print both columns with %13.6f. Their order and whitespace separation
+are unchanged, so parsers that split the line on whitespace are
+unaffected; only the width changes. Update the column header and the
+example in the documentation (example values padded to six decimals).
+
+Example from a Raspberry Pi 5 locked to a GPS PPS reference clock
+(chrony 4.9 with this change); the skew column would otherwise read
+0.000:
+
+2026-09-08 22:52:37 QPPS             1     -0.012372      0.000042  7.563e-11 N  1  9.909e-10  2.495e-10  1.000e-09  3.339e-06  7.658e-06
+
+Signed-off-by: Andrew Luebke <andrew.luebke@gmail.com>
+---
+ doc/chrony.conf.adoc | 6 +++---
+ reference.c          | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/chrony.conf.adoc b/doc/chrony.conf.adoc
+index 6a69df8..481bb68 100644
+--- a/doc/chrony.conf.adoc
++++ b/doc/chrony.conf.adoc
+@@ -2554,7 +2554,7 @@ actually appears as a single line in the file) from the log file is shown
+ below.
+ +
+ ----
+-2017-08-22 13:22:36 203.0.113.15     2     -3.541      0.075 -8.621e-06 N \
++2017-08-22 13:22:36 203.0.113.15     2     -3.541000      0.075000 -8.621e-06 N \
+             2  2.940e-03 -2.084e-04  1.534e-02  3.472e-04  8.304e-03
+ ----
+ +
+@@ -2568,8 +2568,8 @@ values from the example line above) :
+   [203.0.113.15]
+ . The stratum of the local system. [2]
+ . The local system frequency (in ppm, positive means the local system runs fast
+-  of UTC). [-3.541]
+-. The error bounds on the frequency (in ppm). [0.075]
++  of UTC). [-3.541000]
++. The error bounds on the frequency (in ppm). [0.075000]
+ . The estimated local offset at the epoch, which is normally corrected by
+   slewing the local clock (in seconds, positive indicates the clock is fast of
+   UTC). [-8.621e-06]
+diff --git a/reference.c b/reference.c
+index 960e011..5947a28 100644
+--- a/reference.c
++++ b/reference.c
+@@ -243,7 +243,7 @@ REF_Initialise(void)
+   }
+ 
+   logfileid = CNF_GetLogTracking() ? LOG_FileOpen("tracking",
+-      "   Date (UTC) Time     IP Address   St   Freq ppm   Skew ppm     Offset L Co  Offset sd Rem. corr. Root delay Root disp. Max. error")
++      "   Date (UTC) Time     IP Address   St      Freq ppm      Skew ppm     Offset L Co  Offset sd Rem. corr. Root delay Root disp. Max. error")
+     : -1;
+ 
+   max_update_skew = fabs(CNF_GetMaxUpdateSkew()) * 1.0e-6;
+@@ -770,7 +770,7 @@ write_log(struct timespec *now, int combined_sources, double freq,
+   last_sys_offset = offset - uncorrected_offset;
+ 
+   LOG_FileWrite(logfileid,
+-                "%s %-15s %2d %10.3f %10.3f %10.3e %1c %2d %10.3e %10.3e %10.3e %10.3e %10.3e",
++                "%s %-15s %2d %13.6f %13.6f %10.3e %1c %2d %10.3e %10.3e %10.3e %10.3e %10.3e",
+                 UTI_TimeToLogForm(now->tv_sec),
+                 our_ref_ip.family != IPADDR_UNSPEC ?
+                   UTI_IPToString(&our_ref_ip) : UTI_RefidToString(our_ref_id),
+-- 
+2.47.3
+

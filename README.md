@@ -51,7 +51,7 @@ Independent adversarial reviews of both efforts: `docs/review/`.
 | `tools/` | analysis (`pps_stats.py`, `chronylog-stats.py`, `phase-analyze.py`), the loopback calibrators (`looptest*.c`, `loopwarm2.c`, `tic-pair.py`), load generators (`ntpflood.c`, `ntpload.py`), and `pi5-experiments/` — the scripts behind every Pi 5 number |
 | `data/` | raw windows and loopback data (Pi 4), `pi5/` per-phase results and the first overnight log archive |
 | `pico/` | RP2040 PIO edge-capture firmware (the hardware-capture path, also the plan for RP1's PIO) |
-| `chrony/` | tracking-log resolution patches (frequency/skew at ppt resolution) |
+| `chrony/` | chrony 4.9 resolution patches: tracking.log frequency/skew at ppt, and chronyc showing picoseconds and ppt instead of rounding to ns/ppb (`chrony/README.md`) |
 
 ## Quick start
 

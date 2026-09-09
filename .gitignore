@@ -1,2 +1,4 @@
 data/*.err
 *.ko
+__pycache__/
+*.pyc
