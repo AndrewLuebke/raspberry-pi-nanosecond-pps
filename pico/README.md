@@ -62,6 +62,23 @@ fit an external ≤ 8.2 kΩ to GND instead, else a disconnected PPS lead hangs t
 choice of clk_sys: 200 MHz (10 ns ticks, an overclock at 1.15 V) or 150 MHz (13.3 ns ticks, the
 rated speed; `-DSYS_MHZ=150`).
 
+## SWD from the Pi 5 (no probe needed)
+
+Raspberry Pi's OpenOCD build (`apt install openocd`, 0.12.0+rpt) carries the RP2350 target and a
+GPIO bit-bang adapter. `pico2-swd-pi5.cfg` wires it: SWCLK = GPIO11 (pin 23), SWDIO = GPIO8
+(pin 24), GND = pin 30, to the Pico 2's J2 (SWCLK, GND, SWDIO). One trap: the stock
+`raspberrypi5-gpiod.cfg` derives the gpiochip number from the device-tree alias (0), but on the
+project kernel the RP1 header chip is `/dev/gpiochip15`; the cfg pins it explicitly. Proven
+2026-09-08: both Cortex-M33 cores examined, RP2350 rev 2, W25Q32 flash found, image programmed
+and verified through the link. Recovery after the crystal transplant:
+
+```sh
+sudo openocd -f pico2-swd-pi5.cfg -c "init" -c "program pps_pico.elf verify reset exit"
+```
+
+(the ELF from the build directory, not the UF2). The Pico needs power on its USB connector; it
+does not enumerate and does not need to.
+
 ## Pico pins
 
 GP2 ← PPS (3.3 V, same edge the Pi timestamps on GPIO18), GP0 → UART TX to the Pi, GP21 →
