@@ -402,3 +402,28 @@ Incident during the change, for the record: on this board chrony runs from `chro
 in `/usr/local/sbin`, as root); `systemctl restart chrony` (the disabled Debian package unit) started a second
 4.6.1 daemon beside it for about five minutes (RMS 35 µs, raw stamp wandering to +6.9 µs) until it was
 stopped — two daemons on one clock. Restart `chronyd`, and check `ps -C chronyd` shows one process.
+
+## Direct clock comparison, no NTP: scheduled pulses into the Pico (09-09, Pacific 20:15–20:20)
+
+`tools/schedpulse/` (see its README for the method and the RP1 register offsets). Both boards raise a pin at
+0.5 s past each second on their own clock via a register write, logging every pulse's wake-up latency; the
+Pico timestamps both edges and the PPS on one counter. 299 seconds:
+
+| | Pi 4 | Pi 5 |
+|---|---|---|
+| edge after the PPS | 500,014,970 ns | 500,004,380 ns |
+| wake latency (median, robust SD) | 14,952 ns (885) | 3,975 ns (927) |
+| clock error against the F9T pulse | **+103 ns** | **+96 ns** |
+| same, predicted from the delivery constants | +66 ns | +30 ns |
+
+**Pi 4 clock − Pi 5 clock = +0.26 µs** (+0.76 to −0.24 µs as the Pi 5's write flight runs 0…1 µs), against
+**3.0 µs** from the NTP view (`sourcestats` on .18, 38 points, SD 396 ns). The two boards' clocks therefore
+agree to a few hundred nanoseconds and the NTP gap is the Pi 4's software RX/TX timestamp asymmetry: its
+receive stamp is taken late in the driver's NAPI poll while its transmit stamp is taken early at hand-off, and
+a server whose receive lateness exceeds its transmit earliness appears *ahead* by half the difference. The
+Pi 5 has no such term (both stamps come off the PHC). This also confirms both delivery constants in service
+(.17 850 ns, .18 800 ns) to under 100 ns by a route that shares nothing with the method that set them.
+
+Firmware note: the heartbeat's third sequence field pushed that line past the 64-byte buffer, so `snprintf`
+truncated it, the newline was lost and each following channel-B line was glued to it. Buffer raised to 96 and
+every write clamped; the analyser scans by regex, which is how the affected run was recovered intact.

@@ -35,10 +35,12 @@
       PCIe PTM on RP1), or a bound from a different write path.
 - [x] **Pi 4 delivery constant, measured** (2026-09-09, Pico TIC channel C): 784 ns, robust SD
       10 ns (731–844 over the write-flight range); the 850 ns in service is right to ~70 ns.
-- [ ] **Pi 5 delivery constant, re-set**: the Pico TIC puts the entry pulse 1.31 µs after the edge
-      (entry delay + posted write); the 1.8 µs applied on 09-08 came from a Pi 4-clock pairing
-      biased by interrupt deferral. Decide the flight split and move `DELIVERY_NS` / the refclock
-      `offset` to ~0.8–1.3 µs. The Pi 5's NTP view
+- [x] **Pi 5 delivery constant, re-set** (2026-09-09): Pico TIC entry pulse 1.27 µs after the edge
+      (598 pulses, 126–130 ticks); `DELIVERY_NS=800` / `offset +0.8 µs` applied. Confirmed independently
+      by the scheduled-pulse comparison: both boards read within ~100 ns of the F9T pulse.
+- [ ] **Pi 4 NTP timestamp asymmetry**: it appears 3.0 µs ahead over NTP while its clock is within
+      0.3 µs of the Pi 5's. Measure the genet RX/TX stamp lateness directly (the Pico can time the
+      wire against the stamp) rather than inferring it from the residual. The Pi 5's NTP view
       of the Pi 4 (~1.6 µs *ahead*) has the opposite sign and is software-timestamp asymmetry.
 - [ ] **OCXO conditioning**: both OCXOs are free-running today (chrony absorbs the rate in
       software). A 16-bit AD5693R DAC on one OCXO's EFC, driven by a slow PPS-error loop,

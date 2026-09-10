@@ -93,7 +93,7 @@ static void __not_in_flash_func(drain_loop)(void) {
     absolute_time_t next_hb = make_timeout_time_ms(1000);
     absolute_time_t last_pps_at = nil_time, led_toggle_at = make_timeout_time_ms(LED_FREE_MS);
     bool led = false;
-    char line[64];
+    char line[96];   /* must hold the longest heartbeat: an H line with three seq fields ran past 64 and lost its newline (2026-09-09) */
 
     while (true) {
         for (int k = 0; k < NCHAN; k++) {
@@ -117,12 +117,14 @@ static void __not_in_flash_func(drain_loop)(void) {
                 if (raw == 0xFFFFFFFFu) {
                     uint64_t up = c->wraps * 0x100000000ull + (0xFFFFFFFFull - raw) + c->seq;
                     int n = snprintf(line, sizeof line, "%c %llu\n", c->wtag, (unsigned long long)up);
+                    if (n > (int)sizeof line - 1) n = (int)sizeof line - 1;
                     uart_write_blocking(uart0, (const uint8_t *)line, n);
                 } else {
                     c->seq++;
                     uint64_t up = c->wraps * 0x100000000ull + (0xFFFFFFFFull - raw) + c->seq;
                     int n = snprintf(line, sizeof line, "%c %llu %llu\n", c->tag,
                                      (unsigned long long)c->seq, (unsigned long long)up);
+                    if (n > (int)sizeof line - 1) n = (int)sizeof line - 1;
                     uart_write_blocking(uart0, (const uint8_t *)line, n);
                     if (k == 0) {                            /* LED: toggle on every captured PPS (1 s on, 1 s off, locked to the pulse) */
                         led = !led; gpio_put(LED_GPIO, led);
@@ -147,7 +149,8 @@ static void __not_in_flash_func(drain_loop)(void) {
                              CLK_SYS_HZ, TICKS_PER_SEC,
                              (unsigned long long)ch[0].seq, (unsigned long long)ch[0].wraps,
                              (unsigned long long)ch[1].seq, (unsigned long long)ch[2].seq);
-            uart_write_blocking(uart0, (const uint8_t *)line, n);
+            if (n > (int)sizeof line - 1) n = (int)sizeof line - 1;
+                    uart_write_blocking(uart0, (const uint8_t *)line, n);
         }
         tight_loop_contents();
     }
