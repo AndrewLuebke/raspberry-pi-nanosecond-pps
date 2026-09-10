@@ -32,12 +32,18 @@
 #include "hardware/vreg.h"
 #include "hardware/uart.h"
 #include "hardware/gpio.h"
+#include "hardware/timer.h"
 #include "ppscap.pio.h"
 
 #define PPS_GPIO      2
 #define UART_TX_GPIO  0
 #define UART_BAUD     921600
 #define CLKOUT_GPIO   21          /* clk_sys/CLKOUT_DIV = 25 MHz, zero-beat check */
+#ifndef LED_GPIO
+#define LED_GPIO      25          /* on-board LED (Pico / Pico 2; not the W variants) */
+#endif
+#define LED_PPS_MS    100         /* LED on-time per PPS capture */
+#define LED_FREE_MS   500         /* no PPS for 2 s: 1 Hz blink from the OCXO-derived timer (25 M XIN cycles per second) */
 #ifndef SYS_MHZ
 #define SYS_MHZ       200         /* 200 = 10 ns ticks (RP2350 overclock at 1.15 V); -DSYS_MHZ=150 = rated, 13.3 ns ticks */
 #endif
@@ -77,6 +83,8 @@ static void __not_in_flash_func(drain_loop)(void) {
     uint32_t last_raw = 0xFFFFFFFFu;
     bool have_last = false;
     absolute_time_t next_hb = make_timeout_time_ms(1000);
+    absolute_time_t led_off_at = nil_time, last_pps_at = nil_time, led_toggle_at = make_timeout_time_ms(LED_FREE_MS);
+    bool led = false;
     char line[64];
 
     while (true) {
@@ -109,6 +117,21 @@ static void __not_in_flash_func(drain_loop)(void) {
                                  (unsigned long long)seq,
                                  (unsigned long long)up);
                 uart_write_blocking(uart0, (const uint8_t *)line, n);
+                /* LED: one flash per captured pulse */
+                gpio_put(LED_GPIO, 1); led = true;
+                last_pps_at = get_absolute_time();
+                led_off_at = make_timeout_time_ms(LED_PPS_MS);
+            }
+        }
+        {
+            absolute_time_t now = get_absolute_time();
+            bool have_pps = !is_nil_time(last_pps_at) && absolute_time_diff_us(last_pps_at, now) < 2000000;
+            if (have_pps) {
+                if (led && absolute_time_diff_us(now, led_off_at) <= 0) { gpio_put(LED_GPIO, 0); led = false; }
+            } else if (absolute_time_diff_us(now, led_toggle_at) <= 0) {
+                /* free-running: 1 Hz blink timed by the 1 us timer, which ticks off the same 25 MHz XIN */
+                led = !led; gpio_put(LED_GPIO, led);
+                led_toggle_at = delayed_by_ms(led_toggle_at, LED_FREE_MS);
             }
         }
         if (absolute_time_diff_us(get_absolute_time(), next_hb) <= 0) {
@@ -126,6 +149,8 @@ static void __not_in_flash_func(drain_loop)(void) {
 
 int main(void) {
     clocks_from_ocxo_25mhz();
+    timer_hw->dbgpause = 0;   /* keep the 1 us timer running while a debugger is attached (SWD flashing/inspection) */
+    gpio_init(LED_GPIO); gpio_set_dir(LED_GPIO, true); gpio_put(LED_GPIO, 0);
 
     uart_init(uart0, UART_BAUD);
     gpio_set_function(UART_TX_GPIO, GPIO_FUNC_UART);
