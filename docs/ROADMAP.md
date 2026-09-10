@@ -46,10 +46,12 @@
       by the scheduled-pulse comparison: both boards read within ~100 ns of the F9T pulse.
 - [~] **Pi 4 NTP timestamp asymmetry** (2026-09-09, `docs/MEASUREMENTS.md`): the difference is
       measured — `a_rx − a_tx` = 5.5–6.6 µs, which is why it appears 2.7–3.0 µs ahead over NTP
-      while the clocks agree. The individual terms are not: they need `path_RT`, and the Arista
-      7050TX datasheet (3 µs) puts that at 6–12 µs rather than the 4–6 µs first assumed. To close:
-      ask the switch for its own latency (LANZ / latency monitor on the two ports), or run a
-      hardware-stamped echo from the Pi 5 whose software residence on the Pi 4 the Pico times.
+      while the clocks agree. The individual terms are not: they need `path_RT`, which the switch
+      query (2026-09-10) narrows but does not settle — 7050TX-64-R, both ports 1 Gbps, **cut
+      through**, so no frame time in the path, giving `path_RT` ~3–10 µs and `a_rx` ~8–11 µs.
+      The switch itself cannot measure this (no packet timestamping on this platform; LANZ is a
+      congestion tool and reports nothing on idle links). To close, the observer has to be outside
+      the Pi 4's stack: a second hardware-stamping endpoint on a 1 G port, or a wire tap.
       Ruled out as causes: idle-box IRQ thread priority, and the RX coalescing timer with
       `rx-frames` already 1. A sharper A/B would use poll 2 and prove the meter with a known
       delay inserted in the driver's receive path.

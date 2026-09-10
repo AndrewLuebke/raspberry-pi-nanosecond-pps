@@ -464,11 +464,21 @@ local-fast, so it means .17 ahead by 3009 ns) —
 **What is measured.** `(a_rx - a_tx)/2 = theta_measured - theta_true = 2.7–3.3 µs`, so
 **`a_rx - a_tx` = 5.5–6.6 µs**. This needs no network model: `theta_true` is 0–0.3 µs from the Pico.
 
-**What is not.** The individual terms need `path_RT`, and that is the weak input. Serialization of a ~114-byte
-frame at 1 Gbit is 0.91 µs each way and the PHY pairs are ~0.5–0.7 µs, but the switch is an Arista 7050TX whose
-datasheet quotes **3 µs**, not the ~1 µs first assumed. A defensible `path_RT` is **6–12 µs**, which puts
-`a_rx + a_tx` at 8–14 µs and `a_rx` at roughly 7–10 µs with `a_tx` a couple of microseconds. Those are ranges,
-not a split; the earlier working figures of 10 µs and 4.5 µs assumed the optimistic end of the path.
+**What is not.** The individual terms need `path_RT`, and that is the weak input. The switch was asked
+(2026-09-10): an **Arista DCS-7050TX-64-R**, EOS 4.28.13.1M, both Pis on 10GBASE-T ports negotiated to 1 Gbps in
+the same VLAN, and the global switching mode is **cut through**, not store and forward. Cut-through matters
+because it means the switch does not hold the whole frame: with both endpoints stamping at the start of frame,
+no frame time (0.91 µs at 1 Gbit for ~114 bytes) enters the one-way delay. Arista quotes ~3 µs port-to-port for
+this platform, but that figure is for 10GBASE-T at 10 Gbit, where the PHY's block coding dominates; at
+1000BASE-T the PHY contribution is smaller. So `path_RT` is plausibly **3–10 µs** — the low end if cut-through
+really applies to a 1 G pair, the high end if the ASIC falls back to store and forward for them, which EOS on
+this box does not report per port. That puts `a_rx + a_tx` at **10–17 µs**, `a_rx` at roughly 8–11 µs and `a_tx`
+at 2–5 µs. Those are ranges, not a split.
+
+The switch cannot do better than that for us: this platform has no packet timestamping (that is the 7150S), and
+LANZ (`queue-monitor length`) reports queue depth under congestion, which on two idle links is nothing. Separating
+path from stamp error needs a wire observer or a second hardware-stamping endpoint on a 1 G port; every
+measurement that goes through the Pi 4's software stack returns the same sum.
 
 Two independent signs that the variability is on the receive side: chrony's own **jitter asymmetry −0.48**,
 which by its definition means the delay of packets sent *to* the source is the variable one — the client's
