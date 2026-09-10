@@ -13,7 +13,7 @@ bridge, u-blox ZED-F9T PPS on GPIO18, OCXO-injected clocks, open room air (enclo
 | `modprobe-pps-gpio.conf` | `options pps_gpio use_early=1` — report the chained-handler entry stamp |
 | `loopwarm.c` + `systemd/pps-loopwarm.service` | v1 userspace warmer (GPIO17→jumper→GPIO27 at T−150 µs); skipped by the drop-in when the kernel warmer (`pps_warm` v2) is present |
 | `systemd/pps-loopwarm.service.d-kernel-warmer.conf` | that drop-in (`ConditionPathExists=!/sys/module/pps_warm/parameters/lead_us`) |
-| `chrony.conf` | `refclock PPS /dev/pps-gps … filter 16 offset 0.0000018`; `refclock SHM 2` (QPPS, `prefer`); `hwtimestamp eth0`; `log … refclocks` |
+| `chrony.conf` | `refclock PPS /dev/pps-gps … filter 16 offset 0.0000008`; `refclock SHM 2` (QPPS, `prefer`); `hwtimestamp eth0`; `log … refclocks` |
 | `pps-soaklog.sh` + `sht35.py` + `systemd/pps-soaklog.*` | one line a minute: SoC temp, CPU2 MHz, SHT35 box temp/RH, chrony PPS offset/SD, warmer counters |
 | `promote-rp1ts2.sh` | how a tryboot candidate becomes the default |
 

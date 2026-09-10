@@ -393,3 +393,12 @@ half-RTT flight assumption (0.5 µs), the Pi 5's entry delay is **~0.8 µs, not 
 The unsplit term on the Pi 5 is still the posted-write flight; on the Pi 4 the same term is the ~120 ns
 mmap write. Both boards' entry delays are now the same order (~0.8 µs), which is what the silicon budget
 (GPIO synchroniser, interrupt controller, exception entry) suggests.
+
+**Applied (09-09, Pacific 19:43–19:50):** `DELIVERY_NS=800` on the feeder and `offset 0.0000008` on the raw PPS
+refclock (backups `delivery.conf.bak-1800-20260909`, `chrony.conf.bak-offset18-20260909`), i.e. the half-RTT
+flight assumption on the 1.31 µs Pico interval. After the restart: PPS and QPPS agree to ~1 ns, RMS 5.8 ns
+settling, raw assert at **+794 ns** into the second. .18's absolute time moved −1.0 µs; the fleet follows.
+Incident during the change, for the record: on this board chrony runs from `chronyd.service` (the 4.9 build
+in `/usr/local/sbin`, as root); `systemctl restart chrony` (the disabled Debian package unit) started a second
+4.6.1 daemon beside it for about five minutes (RMS 35 µs, raw stamp wandering to +6.9 µs) until it was
+stopped — two daemons on one clock. Restart `chronyd`, and check `ps -C chronyd` shows one process.
