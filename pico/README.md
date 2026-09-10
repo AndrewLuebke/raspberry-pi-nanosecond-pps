@@ -83,3 +83,14 @@ does not enumerate and does not need to.
 GP2 ← PPS (3.3 V, same edge the Pi timestamps on GPIO18), GP0 → UART TX to the Pi, GP21 →
 25 MHz CLKOUT (scope against the OCXO), XIN ← 25 MHz (AC-coupled, ≤ 3.3 V, XOUT floating), GND
 common with the Pi.
+
+### Pico 1 (RP2040) over SWD — 2026-09-09
+
+The second bench board turned out to be an original Pico (RP2040; OpenOCD sees DPIDR `0x0bc12477`,
+DPv2, and the rp2350 target refuses it with "ADIv6 requires DPv3"). Same wiring, `pico1-swd-pi5.cfg`
+(rp2040 target). The RP2040 build (`pps_pico.uf2`, `XOSC_MHZ=25`, 200 MHz) works on it: flatten the UF2
+with `uf2tobin.py` and `program pps_pico-rp2040.bin 0x10000000 verify reset exit`. After the
+transplant, XOSC STATUS `0x81001001` (STABLE+ENABLED), PLL_SYS locked with FBDIV 48 / postdiv 3×2 and
+clk_sys on the PLL = the 25 MHz → 200 MHz path is live. No external pull-down is needed on GP2 on
+RP2040 (the E9 erratum is RP2350-only). 200 MHz is an overclock on RP2040 (rated 133); build with
+`-DSYS_MHZ=150` for the milder setting.
