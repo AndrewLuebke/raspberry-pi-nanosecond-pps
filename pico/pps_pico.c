@@ -36,14 +36,15 @@
 #include "ppscap.pio.h"
 
 #define PPS_GPIO      2           /* channel A: GPS PPS */
-#define AUX_GPIO      3           /* channel B: a pulse to time against the PPS (e.g. the Pi 5 entry-stamp debug pin) */
+#define AUX_GPIO      1           /* channel B: Pi 5 entry-stamp debug pulse (Pi header pin 15 = GPIO22, rp1_pps_debug_gpio=22) — wired to Pico pin 2 (GP1) */
+#define AUX2_GPIO     4           /* channel C: Pi 4 pulse (its GPIO22 / header pin 15 via the calibration wire) */
+#define NCHAN         3
 #define UART_TX_GPIO  0
 #define UART_BAUD     921600
 #define CLKOUT_GPIO   21          /* clk_sys/CLKOUT_DIV = 25 MHz, zero-beat check */
 #ifndef LED_GPIO
 #define LED_GPIO      25          /* on-board LED (Pico / Pico 2; not the W variants) */
 #endif
-#define LED_PPS_MS    100         /* LED on-time per PPS capture */
 #define LED_FREE_MS   500         /* no PPS for 2 s: 1 Hz blink from the OCXO-derived timer (25 M XIN cycles per second) */
 #ifndef SYS_MHZ
 #define SYS_MHZ       200         /* 200 = 10 ns ticks (RP2350 overclock at 1.15 V); -DSYS_MHZ=150 = rated, 13.3 ns ticks */
@@ -86,24 +87,27 @@ struct chan {
     uint sm; uint gpio; char tag; char wtag;
     uint64_t wraps, seq; uint32_t last_raw; bool have_last;
 };
-static struct chan ch[2] = { { 0, PPS_GPIO, 'P', 'W' }, { 0, AUX_GPIO, 'Q', 'V' } };
+static struct chan ch[NCHAN] = { { 0, PPS_GPIO, 'P', 'W' }, { 0, AUX_GPIO, 'Q', 'V' }, { 0, AUX2_GPIO, 'R', 'U' } };
 
 static void __not_in_flash_func(drain_loop)(void) {
     absolute_time_t next_hb = make_timeout_time_ms(1000);
-    absolute_time_t led_off_at = nil_time, last_pps_at = nil_time, led_toggle_at = make_timeout_time_ms(LED_FREE_MS);
+    absolute_time_t last_pps_at = nil_time, led_toggle_at = make_timeout_time_ms(LED_FREE_MS);
     bool led = false;
     char line[64];
 
     while (true) {
-        for (int k = 0; k < 2; k++) {
+        for (int k = 0; k < NCHAN; k++) {
             struct chan *c = &ch[k];
             while (!pio_sm_is_rx_fifo_empty(pio, c->sm)) {
                 uint32_t raw = pio_sm_get(pio, c->sm);      /* down-counter value */
                 /* Wrap accounting: every 0xFFFFFFFF sample IS a hi_poll wrap marker (incl. consecutive
                  * markers when the input is idle >43 s); silent lo_poll wraps are caught by down-counter
                  * monotonicity on the next capture. */
+                /* The state machines only start with their inputs low (see main), so the first marker a channel
+                 * sees is a real wrap and must count too — otherwise an idle channel (first event = marker) ends up
+                 * one wrap behind a busy one. Hosts should still pair channels modulo 2^32 for short intervals. */
                 if (raw == 0xFFFFFFFFu) {
-                    if (c->have_last) c->wraps++;
+                    c->wraps++;
                 } else if (c->have_last && raw > c->last_raw) {
                     c->wraps++;
                 }
@@ -120,10 +124,9 @@ static void __not_in_flash_func(drain_loop)(void) {
                     int n = snprintf(line, sizeof line, "%c %llu %llu\n", c->tag,
                                      (unsigned long long)c->seq, (unsigned long long)up);
                     uart_write_blocking(uart0, (const uint8_t *)line, n);
-                    if (k == 0) {                            /* LED: one flash per captured PPS */
-                        gpio_put(LED_GPIO, 1); led = true;
+                    if (k == 0) {                            /* LED: toggle on every captured PPS (1 s on, 1 s off, locked to the pulse) */
+                        led = !led; gpio_put(LED_GPIO, led);
                         last_pps_at = get_absolute_time();
-                        led_off_at = make_timeout_time_ms(LED_PPS_MS);
                     }
                 }
             }
@@ -131,9 +134,7 @@ static void __not_in_flash_func(drain_loop)(void) {
         {
             absolute_time_t now = get_absolute_time();
             bool have_pps = !is_nil_time(last_pps_at) && absolute_time_diff_us(last_pps_at, now) < 2000000;
-            if (have_pps) {
-                if (led && absolute_time_diff_us(now, led_off_at) <= 0) { gpio_put(LED_GPIO, 0); led = false; }
-            } else if (absolute_time_diff_us(now, led_toggle_at) <= 0) {
+            if (!have_pps && absolute_time_diff_us(now, led_toggle_at) <= 0) {
                 /* free-running: 1 Hz blink timed by the 1 us timer, which ticks off the same 25 MHz XIN */
                 led = !led; gpio_put(LED_GPIO, led);
                 led_toggle_at = delayed_by_ms(led_toggle_at, LED_FREE_MS);
@@ -142,10 +143,10 @@ static void __not_in_flash_func(drain_loop)(void) {
         if (absolute_time_diff_us(get_absolute_time(), next_hb) <= 0) {
             next_hb = delayed_by_ms(next_hb, 1000);
             int n = snprintf(line, sizeof line,
-                             "H clk=%u tps=%u seq=%llu wraps=%llu seq2=%llu\n",
+                             "H clk=%u tps=%u seq=%llu wraps=%llu seq2=%llu seq3=%llu\n",
                              CLK_SYS_HZ, TICKS_PER_SEC,
                              (unsigned long long)ch[0].seq, (unsigned long long)ch[0].wraps,
-                             (unsigned long long)ch[1].seq);
+                             (unsigned long long)ch[1].seq, (unsigned long long)ch[2].seq);
             uart_write_blocking(uart0, (const uint8_t *)line, n);
         }
         tight_loop_contents();
@@ -162,7 +163,7 @@ int main(void) {
 
     uint offset = pio_add_program(pio, &ppscap_program);
     uint mask = 0;
-    for (int k = 0; k < 2; k++) {
+    for (int k = 0; k < NCHAN; k++) {
         gpio_init(ch[k].gpio);
         gpio_set_dir(ch[k].gpio, false);
         gpio_disable_pulls(ch[k].gpio); /* RP2350-E9: the internal pull-down can latch ~2.1 V on an input;
@@ -179,7 +180,7 @@ int main(void) {
     /* start counting only with both inputs low: a pin-high start would emit one bogus wrap marker
      * (X still 0xFFFFFFFF) and drop that pulse. Review §4.4. Both state machines start in the same
      * cycle so their counters agree. */
-    for (int i = 0; i < 3000 && (gpio_get(PPS_GPIO) || gpio_get(AUX_GPIO)); i++) sleep_ms(1);   /* bounded */
+    for (int i = 0; i < 3000 && (gpio_get(PPS_GPIO) || gpio_get(AUX_GPIO) || gpio_get(AUX2_GPIO)); i++) sleep_ms(1);   /* bounded */
     pio_enable_sm_mask_in_sync(pio, mask);
 
     drain_loop();

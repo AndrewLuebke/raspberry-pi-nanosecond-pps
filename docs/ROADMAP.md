@@ -30,13 +30,15 @@
       clock (wiring as verified 2026-09-09 by pulsing each candidate pin: Pi 5 GPIO23 /
       header pin 16 → Pi 4 GPIO22 / header pin 15, `pps@16`; Pi 5 GPIO22 is not connected): 2.44 µs arrival, 1.8 ± 0.25 µs
       pin→entry after the write-flight split; `DELIVERY_NS=1800`, PPS `offset +1.8 µs`.
-- [ ] **Split the ±0.25 µs write flight** with the Pico TIC stamping the pulse pin's edge
-      against its own timebase (needs the 25 MHz crystal transplant).
-- [~] **Pi 4 delivery constant, measured** (2026-09-09, `tools/reverse-tic/`): reverse pairing
-      with a userspace echo gives 0.75–1.18 µs (p1 754, median 1181), ±0.2 µs; the 850 ns in
-      service sits inside that span. Not applied. To close (also retires the ±90 ns loopback
-      item): a kernel-side pulse in the Pi 4's handler (removes the write-flight term) or the
-      Pico TIC. The Pi 5's NTP view
+- [ ] **Split the posted-write flight from the entry delay on the Pi 5**: pin-level instruments
+      only ever see the sum; needs a CPU-side timestamp of the write reaching the RP1 (no
+      PCIe PTM on RP1), or a bound from a different write path.
+- [x] **Pi 4 delivery constant, measured** (2026-09-09, Pico TIC channel C): 784 ns, robust SD
+      10 ns (731–844 over the write-flight range); the 850 ns in service is right to ~70 ns.
+- [ ] **Pi 5 delivery constant, re-set**: the Pico TIC puts the entry pulse 1.31 µs after the edge
+      (entry delay + posted write); the 1.8 µs applied on 09-08 came from a Pi 4-clock pairing
+      biased by interrupt deferral. Decide the flight split and move `DELIVERY_NS` / the refclock
+      `offset` to ~0.8–1.3 µs. The Pi 5's NTP view
       of the Pi 4 (~1.6 µs *ahead*) has the opposite sign and is software-timestamp asymmetry.
 - [ ] **OCXO conditioning**: both OCXOs are free-running today (chrony absorbs the rate in
       software). A 16-bit AD5693R DAC on one OCXO's EFC, driven by a slow PPS-error loop,

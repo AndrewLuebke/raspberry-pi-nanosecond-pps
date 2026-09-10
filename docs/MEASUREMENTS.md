@@ -365,3 +365,31 @@ instead of datagrams). Published predictions, linear error: gap 1 s n=32 robust 
 max 0.55 ns, zero > 3 ns; gap 2 s n=18 robust 0.29 max 0.72, zero > 3 ns; the cut gate skipped
 11 predictions, among them both straddles that occurred (7.79, 7.39 ns). QPPS stayed the
 steering source at −3 ns. Result file: `data/pi4-results/droptest17-results.txt`.
+
+## Pico TIC: both delays against the physical PPS edge (09-09, Pacific ~19:30–20:10)
+
+The bench Pico (RP2040, XIN from the shared OCXO feed, 200 MHz, 10 ns ticks; firmware in `pico/`) captures the
+F9T pulse on GP2 (a tap at the Pi 5's header pin 12) and two more edges on GP1 and GP4, all three state
+machines started in lock-step. Intervals are `(aux − PPS) mod 2^32` ticks on one timebase; no host clock is
+involved.
+
+**Pi 4** (channel C ← Pi 4 GPIO22, `pi4echo` userspace echo, per-pulse wake latency subtracted): 601 pairs,
+interval median 27,980 ns, echo latency median 27,093 ns; **pin→entry 784 ns, robust SD 10 ns** (p10 769,
+p90 798) with the write flight taken as 120 ns (731–844 ns for 173–60 ns). The 850 ns loopback constant in
+service is confirmed to ~70 ns. This retires the Pi 5-clock reverse pairing above: its 1181 ns median was the
+Pi 5 leaf path, not the Pi 4. `data/pi4/results/pico-tic-20260909/`, `tools/reverse-tic/analyze_pico.py`.
+
+**Pi 5** (channel B ← Pi 5 GPIO22 pulsed at the bank-0 handler's first lines, v3 kernel,
+`rp1_pps_debug_gpio=22`): 243 pulses over 122 s (two per second: the warm-edge interrupt's pulse 147.5 µs
+before the PPS, and the PPS interrupt's pulse), **entry pulse 1.31 µs after the PPS edge** (128–131 ticks;
+quantization-limited). That interval is entry delay plus the posted write CPU→RP1 pin. **It is ~1.1 µs less
+than the 2.44 µs measured on the Pi 4's clock the night before**: the Pi 5's pulse reached the Pi 4 only
+1.3 µs after the PPS on the same bank-0 interrupt line, so its interrupt waited behind the PPS handler, and
+the "two symmetric leaf paths" assumption of that method did not hold at that spacing. With the same
+half-RTT flight assumption (0.5 µs), the Pi 5's entry delay is **~0.8 µs, not 1.8 µs**; the `DELIVERY_NS=1800`
+/ `offset +1.8 µs` applied on 09-08 over-corrects by roughly 0.5–1.0 µs (bounds: flight 0…0.5 µs), i.e.
+.18 currently runs that far ahead of GPS. Not yet changed. `data/pi5/results/pico-tic-20260909/`.
+
+The unsplit term on the Pi 5 is still the posted-write flight; on the Pi 4 the same term is the ~120 ns
+mmap write. Both boards' entry delays are now the same order (~0.8 µs), which is what the silicon budget
+(GPIO synchroniser, interrupt controller, exception entry) suggests.
