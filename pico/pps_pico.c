@@ -35,7 +35,8 @@
 #include "hardware/timer.h"
 #include "ppscap.pio.h"
 
-#define PPS_GPIO      2
+#define PPS_GPIO      2           /* channel A: GPS PPS */
+#define AUX_GPIO      3           /* channel B: a pulse to time against the PPS (e.g. the Pi 5 entry-stamp debug pin) */
 #define UART_TX_GPIO  0
 #define UART_BAUD     921600
 #define CLKOUT_GPIO   21          /* clk_sys/CLKOUT_DIV = 25 MHz, zero-beat check */
@@ -76,51 +77,55 @@ static void clocks_from_ocxo_25mhz(void) {
 }
 
 static PIO pio = pio0;
-static uint sm;
+
+/* One capture channel = one state machine running ppscap with its own JMP pin. Both state machines are
+ * started in the same cycle (pio_enable_sm_mask_in_sync) so their down-counters agree; each channel keeps
+ * its own wrap and seq accounting, so after the host-side "+seq" compensation the two extended counts are
+ * on one common timescale and (Q - P) for the same second is the interval between the two edges in ticks. */
+struct chan {
+    uint sm; uint gpio; char tag; char wtag;
+    uint64_t wraps, seq; uint32_t last_raw; bool have_last;
+};
+static struct chan ch[2] = { { 0, PPS_GPIO, 'P', 'W' }, { 0, AUX_GPIO, 'Q', 'V' } };
 
 static void __not_in_flash_func(drain_loop)(void) {
-    uint64_t wraps = 0, seq = 0;
-    uint32_t last_raw = 0xFFFFFFFFu;
-    bool have_last = false;
     absolute_time_t next_hb = make_timeout_time_ms(1000);
     absolute_time_t led_off_at = nil_time, last_pps_at = nil_time, led_toggle_at = make_timeout_time_ms(LED_FREE_MS);
     bool led = false;
     char line[64];
 
     while (true) {
-        while (!pio_sm_is_rx_fifo_empty(pio, sm)) {
-            uint32_t raw = pio_sm_get(pio, sm);      /* down-counter value */
-            /* Wrap accounting (adversarial review 2026-08-30 fix): every
-             * 0xFFFFFFFF sample IS a hi_poll wrap marker (incl. consecutive
-             * markers when PPS is absent >43 s); silent lo_poll wraps are
-             * caught by down-counter monotonicity on the next P sample. */
-            if (raw == 0xFFFFFFFFu) {
-                if (have_last) wraps++;
-            } else if (have_last && raw > last_raw) {
-                wraps++;
-            }
-            last_raw = raw; have_last = true;
-            /* +seq: each capture path skips exactly one decrement (the
-             * jmp-pin-taken + in cycle pair) -> without compensation the
-             * timescale runs 1 tick/s (10 ppb) slow. Review §3.3. */
-            if (raw == 0xFFFFFFFFu) {
-                uint64_t up = wraps * 0x100000000ull + (0xFFFFFFFFull - raw)
-                              + seq;
-                int n = snprintf(line, sizeof line, "W %llu\n",
-                                 (unsigned long long)up);
-                uart_write_blocking(uart0, (const uint8_t *)line, n);
-            } else {
-                seq++;
-                uint64_t up = wraps * 0x100000000ull + (0xFFFFFFFFull - raw)
-                              + seq;
-                int n = snprintf(line, sizeof line, "P %llu %llu\n",
-                                 (unsigned long long)seq,
-                                 (unsigned long long)up);
-                uart_write_blocking(uart0, (const uint8_t *)line, n);
-                /* LED: one flash per captured pulse */
-                gpio_put(LED_GPIO, 1); led = true;
-                last_pps_at = get_absolute_time();
-                led_off_at = make_timeout_time_ms(LED_PPS_MS);
+        for (int k = 0; k < 2; k++) {
+            struct chan *c = &ch[k];
+            while (!pio_sm_is_rx_fifo_empty(pio, c->sm)) {
+                uint32_t raw = pio_sm_get(pio, c->sm);      /* down-counter value */
+                /* Wrap accounting: every 0xFFFFFFFF sample IS a hi_poll wrap marker (incl. consecutive
+                 * markers when the input is idle >43 s); silent lo_poll wraps are caught by down-counter
+                 * monotonicity on the next capture. */
+                if (raw == 0xFFFFFFFFu) {
+                    if (c->have_last) c->wraps++;
+                } else if (c->have_last && raw > c->last_raw) {
+                    c->wraps++;
+                }
+                c->last_raw = raw; c->have_last = true;
+                /* +seq: each capture path skips exactly one decrement on THIS state machine -> add the
+                 * channel's own seq to stay on the common timescale. */
+                if (raw == 0xFFFFFFFFu) {
+                    uint64_t up = c->wraps * 0x100000000ull + (0xFFFFFFFFull - raw) + c->seq;
+                    int n = snprintf(line, sizeof line, "%c %llu\n", c->wtag, (unsigned long long)up);
+                    uart_write_blocking(uart0, (const uint8_t *)line, n);
+                } else {
+                    c->seq++;
+                    uint64_t up = c->wraps * 0x100000000ull + (0xFFFFFFFFull - raw) + c->seq;
+                    int n = snprintf(line, sizeof line, "%c %llu %llu\n", c->tag,
+                                     (unsigned long long)c->seq, (unsigned long long)up);
+                    uart_write_blocking(uart0, (const uint8_t *)line, n);
+                    if (k == 0) {                            /* LED: one flash per captured PPS */
+                        gpio_put(LED_GPIO, 1); led = true;
+                        last_pps_at = get_absolute_time();
+                        led_off_at = make_timeout_time_ms(LED_PPS_MS);
+                    }
+                }
             }
         }
         {
@@ -137,10 +142,10 @@ static void __not_in_flash_func(drain_loop)(void) {
         if (absolute_time_diff_us(get_absolute_time(), next_hb) <= 0) {
             next_hb = delayed_by_ms(next_hb, 1000);
             int n = snprintf(line, sizeof line,
-                             "H clk=%u tps=%u seq=%llu wraps=%llu\n",
+                             "H clk=%u tps=%u seq=%llu wraps=%llu seq2=%llu\n",
                              CLK_SYS_HZ, TICKS_PER_SEC,
-                             (unsigned long long)seq,
-                             (unsigned long long)wraps);
+                             (unsigned long long)ch[0].seq, (unsigned long long)ch[0].wraps,
+                             (unsigned long long)ch[1].seq);
             uart_write_blocking(uart0, (const uint8_t *)line, n);
         }
         tight_loop_contents();
@@ -155,23 +160,27 @@ int main(void) {
     uart_init(uart0, UART_BAUD);
     gpio_set_function(UART_TX_GPIO, GPIO_FUNC_UART);
 
-    gpio_init(PPS_GPIO);
-    gpio_set_dir(PPS_GPIO, false);
-    gpio_disable_pulls(PPS_GPIO); /* RP2350-E9: the internal pull-down can latch ~2.1 V on an input;
-                                   * fit an EXTERNAL <= 8.2 kOhm to GND on GP2 for a defined idle level */
-
     uint offset = pio_add_program(pio, &ppscap_program);
-    sm = pio_claim_unused_sm(pio, true);
-    pio_sm_config c = ppscap_program_get_default_config(offset);
-    sm_config_set_jmp_pin(&c, PPS_GPIO);
-    sm_config_set_in_shift(&c, false, true, 32);   /* autopush at 32 */
-    sm_config_set_clkdiv_int_frac(&c, 1, 0);       /* full clk_sys */
-    pio_gpio_init(pio, PPS_GPIO);
-    pio_sm_init(pio, sm, offset, &c);
-    /* start counting only with PPS low: a pin-high start would emit one
-     * bogus W (X still 0xFFFFFFFF) and drop that pulse. Review §4.4. */
-    for (int i = 0; i < 3000 && gpio_get(PPS_GPIO); i++) sleep_ms(1);   /* bounded: a stuck-high lead must not hang boot */
-    pio_sm_set_enabled(pio, sm, true);
+    uint mask = 0;
+    for (int k = 0; k < 2; k++) {
+        gpio_init(ch[k].gpio);
+        gpio_set_dir(ch[k].gpio, false);
+        gpio_disable_pulls(ch[k].gpio); /* RP2350-E9: the internal pull-down can latch ~2.1 V on an input;
+                                         * on RP2350 fit an EXTERNAL <= 8.2 kOhm to GND for a defined idle level */
+        ch[k].sm = pio_claim_unused_sm(pio, true);
+        pio_sm_config c = ppscap_program_get_default_config(offset);
+        sm_config_set_jmp_pin(&c, ch[k].gpio);
+        sm_config_set_in_shift(&c, false, true, 32);   /* autopush at 32 */
+        sm_config_set_clkdiv_int_frac(&c, 1, 0);       /* full clk_sys */
+        pio_gpio_init(pio, ch[k].gpio);
+        pio_sm_init(pio, ch[k].sm, offset, &c);
+        mask |= 1u << ch[k].sm;
+    }
+    /* start counting only with both inputs low: a pin-high start would emit one bogus wrap marker
+     * (X still 0xFFFFFFFF) and drop that pulse. Review §4.4. Both state machines start in the same
+     * cycle so their counters agree. */
+    for (int i = 0; i < 3000 && (gpio_get(PPS_GPIO) || gpio_get(AUX_GPIO)); i++) sleep_ms(1);   /* bounded */
+    pio_enable_sm_mask_in_sync(pio, mask);
 
     drain_loop();
 }

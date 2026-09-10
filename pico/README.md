@@ -94,3 +94,16 @@ transplant, XOSC STATUS `0x81001001` (STABLE+ENABLED), PLL_SYS locked with FBDIV
 clk_sys on the PLL = the 25 MHz → 200 MHz path is live. No external pull-down is needed on GP2 on
 RP2040 (the E9 erratum is RP2350-only). 200 MHz is an overclock on RP2040 (rated 133); build with
 `-DSYS_MHZ=150` for the milder setting.
+
+### Two capture channels (2026-09-09)
+
+Channel A = GP2 (GPS PPS, `P <seq> <ticks>` lines, LED flash per pulse); channel B = **GP3** (physical pin 5),
+`Q <seq> <ticks>` lines, for a pulse to time against the PPS — the Pi 5's entry-stamp debug pin
+(`pinctrl_rp1.rp1_pps_debug_gpio=22`, header pin 15) is the intended source. Both state machines run the same
+`ppscap` program and are started in the same cycle (`pio_enable_sm_mask_in_sync`), so after each channel's own
+`+seq` compensation the two extended counts share one timescale: for the same second, `Q − P` is the interval
+from the PPS edge to the aux edge in ticks (10 ns at 200 MHz, 13.3 ns at 150). Wrap markers are `W` (A) and `V`
+(B); the heartbeat carries `seq2`. Images: `pps_pico.uf2` / `pps_pico-rp2040.elf` (RP2040, 200 MHz),
+`pps_pico-rp2350-150mhz.*` (RP2350 rated), `pps_pico-rp2350.uf2` / `pps_pico-rp2350-200mhz.elf` (RP2350 overclock).
+Note the sum this measures on the Pi 5 side is entry delay **plus** the posted write to the RP1 pin; the split
+between the two still needs an independent handle on the write flight.
