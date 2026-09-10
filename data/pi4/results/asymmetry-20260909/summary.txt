@@ -1,0 +1,15 @@
+# Pi 4 NTP timestamp asymmetry, 2026-09-09 evening. Source: .18's /var/log/chrony/measurements.log,
+# columns 12 (offset, s) and 13 (peer delay, s), rows for 192.168.1.17. .18 stamps in hardware and runs
+# interleaved; .17 has no PHC and stamps in software. Each phase: apply, wait ~11 min for the window to
+# refill at poll 5 (32 s), then take the last 20-40 samples.
+#
+# phase                         n   offset median (p10/p90)      peer delay median (min/max)
+baseline                        40  3586 ns (2997/4097)        19.79 us (18.37/33.85)
+eth0 IRQ threads FIFO 50->85    20  3499 ns (3036/3738)        19.41 us (17.80/24.64)
+RX coalescing 57 us -> 0        20  3473 ns (3094/3945)        19.35 us (18.44/30.24)
+#
+# .18 sourcestats regression on .17 during the baseline: -3009 ns, SD 137 ns, 16 points over 969 s.
+# Both levers reverted afterwards (irq/27-eth0, irq/28-eth0 back to FIFO 50; rx-usecs back to 57).
+# .18 ntpdata 192.168.1.17 in the same window: Mode Server, Interleaved Yes, TX timestamping Hardware,
+# RX timestamping Hardware, measurements.log mode letter 4I, Jitter asymmetry -0.48, Response time 39.6 us.
+# chrony's sourcestats Offset column is local-fast, so -3009 ns means .17 ahead by 3009 ns.

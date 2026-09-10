@@ -152,14 +152,24 @@ GPIO23, header pin 16, to Pi 4 GPIO22, header pin 15 (`pps@16`) — verified 202
 pulsing each candidate pin from the kernel and watching which Pi 4 input counts; the
 overlay's `debug-gpios = 22` belongs to the v2 module pulse and is not connected), wired to the Pi 4, and paired against the Pi 4's stamp of
 the same GPS edge with `tools/tic-pair.py` arrives **2.44 µs** after the edge (robust SD
-136 ns), the in-kernel warmer loop reads 2.22 µs at the same time, and taking the posted
-write as half the 0.99 µs read round trip gives **1.8 ± 0.25 µs** — applied as the feeder's
-`DELIVERY_NS=1800` and the raw refclock's `offset +1.8 µs`. The earlier loop-only estimate
-(1.76 µs bound, ~1.1–1.3 µs guess) was low by about 0.5 µs, the size of the write flight it
-had to assume. The Pi 4's own delivery figure was then measured the same way, other direction
-(2026-09-09, `tools/reverse-tic/`, `docs/MEASUREMENTS.md`): 1181 ns (median) / 754 ns (p1), ±0.2 µs,
-userspace echo; the 850 ns loopback constant in service sits inside that span and has not been
-updated. Neither number is GPS-traceable.
+136 ns). That figure, and the 1.8 ± 0.25 µs entry delay taken from it, were **superseded the
+next day**: the two events were only ~1.3 µs apart on one shared bank-0 interrupt line, so the
+Pi 5's pulse waited behind the Pi 4's PPS handler and the pairing read ~1.1 µs high. The same
+objection retires the reverse pairing of the Pi 4 (1181 ns median), which carried the Pi 5's
+leaf path.
+
+An external counter has neither problem. With a Pico on the same OCXO capturing the PPS and both
+boards' pulses on lock-stepped state machines (`pico/`, `docs/MEASUREMENTS.md`): the Pi 5's
+entry-stamp pulse lands **1270 ns** after the PPS edge (598 pulses, 126–130 ticks) and the Pi 4's
+pin→entry is **784 ns** (robust SD 10 ns). The Pi 5 figure is the entry delay *plus* one posted
+write out to the RP1 pin, and those two cannot be separated from the CPU side: a read-back is
+ordered behind the posted write and always returns the new value. Measuring the RP1 read round
+trip (949 ns) leaves a non-link remainder of ~300–380 ns — GIC delivery, exception entry and prologue, plus the GPIO
+synchronisers, the MSI-versus-completion difference and the pad: a bucket, not a measured entry cost, so **if the link is
+symmetric** entry ≈ 820 ns and flight ≈ 450 ns, ±200 ns. In service: `DELIVERY_NS=800` and the raw
+refclock's `offset +0.8 µs` on the Pi 5 (since 2026-09-09 19:43), 850 ns on the Pi 4, the latter
+confirmed to ~70 ns by the counter. Neither number is GPS-traceable — the counter shares the
+receiver's pulse, not a national timescale.
 
 ## Serving
 
@@ -202,14 +212,16 @@ throughout.
   which argues against die temperature, though it does not isolate every board gradient. An
   enclosure and the SHT35 logger are the next step, and the single calm night above is a
   data point, not the floor.
-- The absolute time of the Pi 5 is calibrated to ±0.25 µs against the Pi 4's clock (the
-  write-flight split); the Pi 4's ≈ 850 ns (with ±90 ns of unmeasurable posted-write split)
-  is a GPIO-loopback calibration, not GPS-traceable; reverse pairing on 2026-09-09 (userspace
-  echo, `tools/reverse-tic/`) puts the Pi 4's pin→entry at 0.75–1.18 µs ±0.2 µs, not yet
-  applied. After the +1.8 µs move the Pi 5 reads
-  the Pi 4 ~1.6 µs ahead over NTP (was −3.7 µs before), and LAN clients agree at 1–2 µs;
-  that residue is the Pi 4's software RX/TX timestamp asymmetry as seen over NTP, not a
-  measured clock disagreement, and cannot be resolved over NTP.
+- Both boards' pin→stamp delays are measured with the Pico counter: Pi 4 **784 ns**, Pi 5
+  **1270 ns** including the posted write. The delivery constants follow (850 and 800 ns), and
+  scheduled pulses timed by the same counter put each board within ~100 ns of the F9T pulse and
+  the two clocks within a few hundred nanoseconds of each other. Nothing is GPS-traceable.
+- Over NTP the Pi 4 nonetheless reads **2.7–3.0 µs ahead** of the Pi 5 (the same residue that was −3.7 µs
+  before any delivery correction and −1.6 µs after the +1.8 µs move; 1800→800 moved the Pi 5 by −1.0 µs). That is its software
+  timestamping, not a clock difference: with no PHC its receive stamp is late and its transmit
+  stamp early, and a client sees half that difference as an offset. Measured as
+  `a_rx − a_tx` = 5.5–6.6 µs; the individual terms need a network-path figure the switch has not
+  been asked for yet (`docs/MEASUREMENTS.md`).
 
 ## Negative results, kept on purpose
 
@@ -217,7 +229,12 @@ ASPM (1–2 ns, tail only) · kernel 7.3-rc1 vs 7.1.8 · root-complex QoS map ·
 low-latency-mode bit (already set) · boot-to-boot placement · IPIs · warm-lead 50 vs
 150 µs (flat) · lead 30 µs (invalid: the skip guard needs lead > margin) · userspace
 loop-latency readback as a delivery measurement (it is not: it contains two gpio-cdev
-syscalls and a cold entry) · client-side hardware timestamping on an Aquantia NIC
+syscalls and a cold entry) · the *in-kernel* warmer loop as one either (2045 ns for a sum the
+counter measures as 1270, the difference being callback software before the register write) ·
+RP1 register read-back as a bound on the posted write (PCIe ordering: the read cannot pass the
+write and always returns the new value) · eth0 IRQ threads at FIFO 85 instead of 50, and RX
+coalescing at 0 instead of 57 µs, as levers on the Pi 4's NTP timestamp asymmetry (both inside one standard
+error of an n=20 window, and `rx-frames` was already 1, so the microsecond timer was probably a no-op) · client-side hardware timestamping on an Aquantia NIC
 (PHC reads too noisy) · SoC temperature.
 
 ## Reviews

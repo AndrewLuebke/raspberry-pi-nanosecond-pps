@@ -28,20 +28,31 @@
 - [x] **Pi 5 delivery constant** (2026-09-08): a spare pin pulsed at handler entry (v3
       kernel, `pinctrl_rp1.rp1_pps_debug_gpio`), wired to the Pi 4, paired on the Pi 4's
       clock (wiring as verified 2026-09-09 by pulsing each candidate pin: Pi 5 GPIO23 /
-      header pin 16 → Pi 4 GPIO22 / header pin 15, `pps@16`; Pi 5 GPIO22 is not connected): 2.44 µs arrival, 1.8 ± 0.25 µs
-      pin→entry after the write-flight split; `DELIVERY_NS=1800`, PPS `offset +1.8 µs`.
+      header pin 16 → Pi 4 GPIO22 / header pin 15, `pps@16`; Pi 5 GPIO22 is not connected):
+      2.44 µs arrival. **Superseded 2026-09-09** — the two events were ~1.3 µs apart on one
+      shared interrupt line, so the pairing read ~1.1 µs high; use the Pico TIC figure below.
 - [ ] **Split the posted-write flight from the entry delay on the Pi 5**: pin-level instruments
-      only ever see the sum; needs a CPU-side timestamp of the write reaching the RP1 (no
-      PCIe PTM on RP1), or a bound from a different write path.
+      only ever see the sum (1270 ns). Read-back is ruled out — PCIe ordering keeps the read
+      behind the posted write (`tools/schedpulse/rp1lat.c`, 20 000 iterations, every one read
+      back the new bit). The RP1 read round trip is 949 ns, leaving ~300–380 ns of non-link
+      remainder, so a symmetric link would give entry ≈ 820 / flight ≈ 450 ns ±200 — conditional,
+      not measured. A real split needs the RP1 side to latch a counter on the inbound write
+      (no PCIe PTM on RP1), or a hardware capture of the pin edge on the Pi 5 itself (RP1 PIO),
+      which would also give the PPS an interrupt-free timestamp.
 - [x] **Pi 4 delivery constant, measured** (2026-09-09, Pico TIC channel C): 784 ns, robust SD
       10 ns (731–844 over the write-flight range); the 850 ns in service is right to ~70 ns.
 - [x] **Pi 5 delivery constant, re-set** (2026-09-09): Pico TIC entry pulse 1.27 µs after the edge
       (598 pulses, 126–130 ticks); `DELIVERY_NS=800` / `offset +0.8 µs` applied. Confirmed independently
       by the scheduled-pulse comparison: both boards read within ~100 ns of the F9T pulse.
-- [ ] **Pi 4 NTP timestamp asymmetry**: it appears 3.0 µs ahead over NTP while its clock is within
-      0.3 µs of the Pi 5's. Measure the genet RX/TX stamp lateness directly (the Pico can time the
-      wire against the stamp) rather than inferring it from the residual. The Pi 5's NTP view
-      of the Pi 4 (~1.6 µs *ahead*) has the opposite sign and is software-timestamp asymmetry.
+- [~] **Pi 4 NTP timestamp asymmetry** (2026-09-09, `docs/MEASUREMENTS.md`): the difference is
+      measured — `a_rx − a_tx` = 5.5–6.6 µs, which is why it appears 2.7–3.0 µs ahead over NTP
+      while the clocks agree. The individual terms are not: they need `path_RT`, and the Arista
+      7050TX datasheet (3 µs) puts that at 6–12 µs rather than the 4–6 µs first assumed. To close:
+      ask the switch for its own latency (LANZ / latency monitor on the two ports), or run a
+      hardware-stamped echo from the Pi 5 whose software residence on the Pi 4 the Pico times.
+      Ruled out as causes: idle-box IRQ thread priority, and the RX coalescing timer with
+      `rx-frames` already 1. A sharper A/B would use poll 2 and prove the meter with a known
+      delay inserted in the driver's receive path.
 - [ ] **OCXO conditioning**: both OCXOs are free-running today (chrony absorbs the rate in
       software). A 16-bit AD5693R DAC on one OCXO's EFC, driven by a slow PPS-error loop,
       is planned: holdover and the long end of the ADEV curve, not the per-pulse capture.

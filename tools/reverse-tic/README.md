@@ -21,3 +21,6 @@ correlated (r = 0.31) with the Pi 4's wake latency, so the Pi 4 write path is th
 (whose leaf SD is 90 ns). **d4 = 1181 ns (median) / 754 ns (p1)**, i.e. 0.75–1.18 µs, ±~0.2 µs systematic (L5
 applicability, f4). The loopback figure in service (850 ns) sits inside that span. The L5 used (2213 ns) is the
 dmesg line archived next to the logs (`pi5-entry-leaf-dmesg.txt`).
+
+**Superseded the same day** by the Pico TIC, which puts the Pi 4's pin→entry at **784 ns**: this median carried
+the Pi 5's leaf path, not the Pi 4's delay. Kept as the method's own receipt.

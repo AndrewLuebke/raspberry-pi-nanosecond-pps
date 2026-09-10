@@ -33,10 +33,10 @@ historical ladder uses a third measure, `ppstest` sample SD, and is labelled whe
 | raw scatter, idle, other days | — | 10–12 ns (calm night is the best case) |
 | chrony residual under load, shipped stack: fork storm / DRAM hog / NTP ≤ 1000 req/s | 4.4 / 4.9 / — ns (raw p99 not archived) | 5.0 (p99 106) / 3.7 (p99 242) / 4.2–5.1 ns (p99 17–23); page-cache reads / 64 MB working set / line-rate NIC: 13.3 / 14.9 / 8.8 ns; cache-maintenance stressors: 37–109 ns |
 | NTP serving ceiling, one core | rate-limited by policy | ~150k req/s; residual ≤ 6.4 ns throughout |
-| absolute delivery | ≈ 850 ns in service; **Pico TIC 2026-09-09: pin→entry 784 ns, robust SD 10 ns** (731–844 over the write-flight range) — the loopback constant confirmed to ~70 ns | **Pico TIC 2026-09-09: entry pulse 1.31 µs after the PPS edge** (10 ns ticks), = entry delay + posted write to the RP1 pin; ~0.8 µs entry delay with the half-RTT flight assumption. The 1.8 ± 0.25 µs from the 09-08 Pi 4-clock pairing was biased ~1.1 µs by interrupt deferral on the Pi 4 (events 1.3 µs apart on one bank line); **applied 2026-09-09 19:43 PDT: `DELIVERY_NS=800` / `offset +0.8 µs`** (raw stamp now +794 ns into the second; PPS and QPPS agree to 1 ns) |
+| absolute delivery | ≈ 850 ns in service; **Pico TIC 2026-09-09: pin→entry 784 ns, robust SD 10 ns** (731–844 over the write-flight range) — the loopback constant confirmed to ~70 ns | **Pico TIC 2026-09-09: PPS pin edge → entry-stamp pulse edge 1270 ns** (598 pulses, 126–130 ticks at 10 ns), which is the pin→entry delay *plus* the posted write out to the RP1 pin. A userspace RP1 register read round trip measures 949 ns (n=20 000; the kernel's own status read 984), so the non-link remainder is ~300–380 ns, the right size for GIC + exception entry + prologue. **If the two link directions are symmetric**, entry ≈ 820 ns and write flight ≈ 450 ns, ±200 ns — a conditional split, not a measurement. Applied 2026-09-09 19:43 PDT: `DELIVERY_NS=800` / `offset +0.8 µs` (raw stamp now +794 ns into the second; PPS and QPPS agree to 1 ns) |
 | what the patches remove | thread wake, 3.3 µs demux, cold-cache scatter (entry stamp + steer + software-pended pre-warm IRQ) | the ~1 µs PCIe status read before the stamp, and a warm-edge IRQ thread on the timing core |
 
-Write-ups: **[`docs/PI5.md`](docs/PI5.md)** for the Pi 5 (2026-09-03 → 09-08) and the
+Write-ups: **[`docs/PI5.md`](docs/PI5.md)** for the Pi 5 (2026-09-03 → 09-09) and the
 Pi 4 story below (2026-08-29/30). Measurements for both: `docs/MEASUREMENTS.md`.
 
 For scale, the stock Pi 5 path was measured independently the same week: James Clark's
@@ -44,10 +44,11 @@ For scale, the stock Pi 5 path was measured independently the same week: James C
 (SatPulse, 2026-09-06) clocks the kernel stamp with a tinyGTC counter at **11.7 µs** after
 the edge on a stock kernel, **~6.2 µs** with the RP1 link's L1 power state disabled and
 **~5.2 µs** with the CPU clock pinned. Both of those settings are in effect here; the
-entry-stamp kernel's 1.8 ± 0.25 µs is what remains of the same MSI trip once the stamp is
-taken at interrupt entry with the path kept warm. The two numbers come from different
-counters (a tinyGTC versus a paired Pi 4) and different receivers, so treat the comparison
-as µs-scale, not ns-scale. That post also settles the *accuracy versus precision* framing:
+entry-stamp kernel's **1270 ns** — pin edge to the pulse the handler emits, so entry delay plus
+one posted write — is what remains of the same MSI trip once the stamp is taken at interrupt
+entry with the path kept warm. The two numbers come from different counters (a tinyGTC versus a
+Pico on our own oscillator) and different receivers, so treat the comparison as µs-scale, not
+ns-scale. That post also settles the *accuracy versus precision* framing:
 everything in the table above except this row is precision.
 Independent adversarial reviews of both efforts: `docs/review/`.
 
@@ -60,7 +61,7 @@ Independent adversarial reviews of both efforts: `docs/review/`.
 | `deploy/`, `deploy/pi5/` | the exact running configuration of each server: cmdline, config.txt, udev, systemd units, IRQ pinning, chrony refclock lines |
 | `daemon/` | qErr-corrected PPS → chrony SHM feeder (`qpps-shm.py`), the qErr forwarder that lets a second Pi use the F9T's per-pulse correction (`qerr-forward.py`), and the peer-edition feeder with the gap predictor (`qpps-shm-peer.py`, see `docs/PI5.md`) |
 | `tools/` | analysis (`pps_stats.py`, `chronylog-stats.py`, `phase-analyze.py`), `schedpulse/` (compare two boards' clocks directly with the Pico, no NTP), the loopback calibrators (`looptest*.c`, `loopwarm2.c`, `tic-pair.py`), load generators (`ntpflood.c`, `ntpload.py`), `reverse-tic/` (the Pi 4's delay on the Pi 5's clock), and `pi5-experiments/` — the scripts behind every Pi 5 number |
-| `data/` | raw windows and loopback data (Pi 4), `pi4/results/reverse-tic-20260909/` (reverse pairing logs), `pi5/` per-phase results and the first overnight log archive |
+| `data/` | raw windows and loopback data (Pi 4), `pi4/results/` (reverse pairing, and the NTP-asymmetry A/B), `pi5/` per-phase results, the Pico TIC and schedpulse captures, the RP1 latency run, and the first overnight log archive |
 | `pico/` | the Pico PPS timestamper firmware (OCXO-clocked PIO capture; RP2040 and RP2350 builds, `pico/README.md`) |
 | `chrony/` | chrony 4.9 resolution patches: tracking.log frequency/skew at ppt, and chronyc showing picoseconds and ppt instead of rounding to ns/ppb (`chrony/README.md`) |
 
@@ -154,12 +155,16 @@ hardware property. Measured silicon budget: ~10–20 ns σ. Everything else was:
 ### Status
 
 Lab notebook with receipts for two servers we operate (a Pi 4 and, since 2026-09, a Pi 5 —
-see `docs/PI5.md`); not a distribution guide. The Pi 5 pin→entry delay is paired against
-the Pi 4's clock at 1.8 ± 0.25 µs (2026-09-08, write-flight split). Reverse pairing of the
-Pi 4 on the Pi 5's clock (2026-09-09, userspace echo) gives 0.75–1.18 µs ±0.2 µs (p1 to
-median); the 850 ns loopback constant in service sits inside that span and has not been
-updated. Neither figure is GPS-traceable. The Pi 5's NTP view of the Pi 4 (~1.6 µs ahead
-after the +1.8 µs move) is a software-timestamp asymmetry number, not a clock disagreement.
+see `docs/PI5.md`); not a distribution guide. Both boards' pin→stamp delays are now measured
+with an external counter (a Pico on the shared OCXO): Pi 4 **784 ns** (robust SD 10 ns), Pi 5
+**1270 ns** for pin→entry *plus* the posted write to the RP1 pin. The delivery constants in
+service, 850 ns and 800 ns, follow from those. The earlier figures from pairing the two boards
+against each other (Pi 5 1.8 ± 0.25 µs on 09-08, Pi 4 0.75–1.18 µs on 09-09) are superseded:
+the first was biased by interrupt deferral, the second carried the other board's leaf path.
+Nothing here is GPS-traceable; the counter shares the receiver's pulse, not a national timescale.
+Scheduled pulses timed by the same counter put the two clocks within a few hundred nanoseconds of
+each other and each within ~100 ns of the F9T pulse, while NTP shows the Pi 4 2.7–3.0 µs *ahead* — that
+gap is the Pi 4's software timestamping, not a clock disagreement.
 
 ### License
 

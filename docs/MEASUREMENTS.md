@@ -314,6 +314,8 @@ Subtracting the status read (0.99 µs measured) leaves 2.4 µs for entry delay p
 the warmer's own loop (drive → entry, 1.96 µs) is write flight plus entry delay from the other
 side, so the entry delay is bracketed at roughly **1.5–1.9 µs** with ~0.4 µs unresolved between the
 two measurements (the Pi 4's two leaf delays and the two RP1 write paths are assumed equal).
+*(Superseded the same night by run 4, which emits the pulse at handler entry, before the PCIe read. Kept as history.)*
+
 **Run 4 (v3 kernel, Pacific 20:48–20:58):** with the pulse emitted at handler entry, before the
 PCIe read, the pulse arrives **2.44 µs** after the GPS edge (n = 597, median 2444, mean 2474,
 robust SD **136 ns**, p10/p90 2314/2685; `data/pi5/results/tic-pair-run4-20260908.txt`). The
@@ -326,6 +328,10 @@ kernel produced six samples: v3 pulses on the warm edge too, 150 µs before the 
 pairing tool's blocking fetch skipped the PPS pulse while waking from the first; the tool now
 settles half a millisecond and takes the newest event.
 
+*(Superseded 2026-09-09 by the Pico TIC below. The 2.44 µs, and the 1.7–1.9 µs entry delay and `DELIVERY_NS=1800`
+taken from it, read ~1.1 µs high: the Pi 5's pulse and the PPS were only ~1.3 µs apart on one shared bank-0
+interrupt line, so the second waited behind the first. Kept as history.)*
+
 **After the +1.8 µs move (09-09, ~14:30 Pacific):** the Pi 5's NTP measurement of the Pi 4
 reads −1.6 µs (`sourcestats`, 29 samples, SD 217 ns; the Pi 5 behind the Pi 4, i.e. the
 Pi 4 ahead) against −3.7 µs before the move; LAN clients that follow the Pi 5 see the Pi 4
@@ -333,6 +339,11 @@ Pi 4 ahead) against −3.7 µs before the move; LAN clients that follow the Pi 5
 is accounted for exactly; the residue has the sign of a software RX-late / TX-early
 timestamp asymmetry on the Pi 4 (it has no PHC), which an NTP measurement cannot separate
 from a true clock offset. It is not evidence that the two boards disagree.
+
+Later the same evening `DELIVERY_NS` went 1800 → 800 and .18 moved −1.0 µs, so the same residue now reads
+~3.0 µs of .17-ahead. −3.7 µs (entry stamp live, no delivery correction) → −1.6 µs (after +1.8) → ~3.0 µs
+(after 1800→800) is one software-stamp quantity seen under two delivery moves, not three clock disagreements:
+1.6 + 1.0 = 2.6 against a measured 3.0, the rest being window and wander.
 
 ## Reverse pairing: the Pi 4's delay on the Pi 5's clock (09-09, Pacific 16:20–16:32)
 
@@ -347,7 +358,10 @@ under load is the scatter, not the Pi 5. **d4 = 1181 ns (median) / 754 ns (p1)**
 applicability, f4); the L5 dmesg line is archived beside the logs. The 850 ns loopback constant the Pi 4 runs
 with sits inside that span (0.33 µs below the median, 0.10 µs above p1), so the reverse run neither confirms
 nor moves it; whatever the true value, it is far from the 1.6 µs by which .17 reads *ahead* over NTP, and of
-the wrong sign to explain it, which confirms the NTP residue is the Pi 4's software-timestamp asymmetry. Both boards' raw asserts sat where
+the wrong sign to explain it, which confirms the NTP residue is the Pi 4's software-timestamp asymmetry.
+
+*(Superseded later the same day by the Pico TIC, which puts the Pi 4's pin→entry at 784 ns: this median carried
+the Pi 5's leaf path rather than the Pi 4's own delay. Kept as the method's receipt.)* Both boards' raw asserts sat where
 their constants say during the run (Pi 4 +851 ns, robust SD 7.4; Pi 5 +1799 ns, SD 11.9). Not applied to
 .17; a kernel-side pulse on the Pi 4 (or the Pico) would remove the f4 term and settle the last 0.2 µs.
 Logs: `data/pi4/results/reverse-tic-20260909/`.
@@ -355,8 +369,9 @@ Logs: `data/pi4/results/reverse-tic-20260909/`.
 Context from outside: SatPulse's 2026-09-06 tinyGTC measurement of a stock Pi 5 (
 `pps-rp1` overlay, kernel 6.12.70) puts the kernel stamp 11.7 µs after the edge, 6.2 µs
 with RP1 L1 ASPM off, 5.2 µs with the CPU clock pinned — the two knobs this board already
-runs. The entry-stamp path's 1.8 ± 0.25 µs is the same trip measured with a different
-counter (paired Pi 4) and receiver.
+runs. The entry-stamp path's **1270 ns** — pin edge to the pulse the handler emits — is the same trip measured with a
+different counter (a Pico on our own oscillator) and receiver; the 1.8 ± 0.25 µs from pairing against the Pi 4 is
+the superseded figure above.
 
 ## qErr predictor on the Pi 4 feeder (09-08, Pacific 13:38–14:07)
 
@@ -380,15 +395,14 @@ service is confirmed to ~70 ns. This retires the Pi 5-clock reverse pairing abov
 Pi 5 leaf path, not the Pi 4. `data/pi4/results/pico-tic-20260909/`, `tools/reverse-tic/analyze_pico.py`.
 
 **Pi 5** (channel B ← Pi 5 GPIO22 pulsed at the bank-0 handler's first lines, v3 kernel,
-`rp1_pps_debug_gpio=22`): 243 pulses over 122 s (two per second: the warm-edge interrupt's pulse 147.5 µs
-before the PPS, and the PPS interrupt's pulse), **entry pulse 1.31 µs after the PPS edge** (128–131 ticks;
-quantization-limited). That interval is entry delay plus the posted write CPU→RP1 pin. **It is ~1.1 µs less
+`rp1_pps_debug_gpio=22`): two pulses per second (the warm-edge interrupt's, 147.5 µs before the PPS, and the
+PPS interrupt's own). First run 122 s, 244 channel-B pulses, 128–131 ticks (median 129); a 10-minute run the same evening gave
+**1270 ns, 598 pulses, 126–130 ticks** — quote the longer one. The interval is quantization-limited. That interval is entry delay plus the posted write CPU→RP1 pin. **It is ~1.1 µs less
 than the 2.44 µs measured on the Pi 4's clock the night before**: the Pi 5's pulse reached the Pi 4 only
 1.3 µs after the PPS on the same bank-0 interrupt line, so its interrupt waited behind the PPS handler, and
-the "two symmetric leaf paths" assumption of that method did not hold at that spacing. With the same
-half-RTT flight assumption (0.5 µs), the Pi 5's entry delay is **~0.8 µs, not 1.8 µs**; the `DELIVERY_NS=1800`
-/ `offset +1.8 µs` applied on 09-08 over-corrects by roughly 0.5–1.0 µs (bounds: flight 0…0.5 µs), i.e.
-.18 currently runs that far ahead of GPS. Not yet changed. `data/pi5/results/pico-tic-20260909/`.
+the "two symmetric leaf paths" assumption of that method did not hold at that spacing. The 09-08 `DELIVERY_NS=1800` / `offset +1.8 µs` was the pairing figure, and the Pico retired it the same
+day: what follows is the 800 ns apply, and below that a bound on the part of the 1270 ns that is not the
+entry delay. `data/pi5/results/pico-tic-20260909/`.
 
 The unsplit term on the Pi 5 is still the posted-write flight; on the Pi 4 the same term is the ~120 ns
 mmap write. Both boards' entry delays are now the same order (~0.8 µs), which is what the silicon budget
@@ -396,7 +410,8 @@ mmap write. Both boards' entry delays are now the same order (~0.8 µs), which i
 
 **Applied (09-09, Pacific 19:43–19:50):** `DELIVERY_NS=800` on the feeder and `offset 0.0000008` on the raw PPS
 refclock (backups `delivery.conf.bak-1800-20260909`, `chrony.conf.bak-offset18-20260909`), i.e. the half-RTT
-flight assumption on the 1.31 µs Pico interval. After the restart: PPS and QPPS agree to ~1 ns, RMS 5.8 ns
+flight assumption applied to the first Pico capture (243 pulses, ~1.31 µs); the 10-minute capture the same
+evening reads 1270 ns, and 800 ns was kept because it sits inside the later conditional split. After the restart: PPS and QPPS agree to ~1 ns, RMS 5.8 ns
 settling, raw assert at **+794 ns** into the second. .18's absolute time moved −1.0 µs; the fleet follows.
 Incident during the change, for the record: on this board chrony runs from `chronyd.service` (the 4.9 build
 in `/usr/local/sbin`, as root); `systemctl restart chrony` (the disabled Debian package unit) started a second
@@ -427,3 +442,92 @@ Pi 5 has no such term (both stamps come off the PHC). This also confirms both de
 Firmware note: the heartbeat's third sequence field pushed that line past the 64-byte buffer, so `snprintf`
 truncated it, the newline was lost and each following channel-B line was glued to it. Buffer raised to 96 and
 every write clamped; the analyser scans by regex, which is how the affected run was recovered intact.
+
+## The Pi 4's NTP timestamp asymmetry (09-09, Pacific 21:35–22:35)
+
+Why .17 reads ~3 µs ahead of .18 over NTP while the two clocks agree to a few hundred nanoseconds
+(schedpulse, above). The Pi 4 has no PHC, so its NTP timestamps are software: the receive stamp is taken late,
+in the driver's NAPI poll, and the transmit stamp early, at the genet doorbell. Writing those as `a_rx` (late)
+and `a_tx` (early), a client measures
+
+```
+theta = theta_true + (a_rx - a_tx)/2          delta = path_RT + a_rx + a_tx
+```
+
+The observer is .18, which stamps in hardware and runs interleaved (`chronyc ntpdata`: Interleaved Yes,
+TX/RX timestamping Hardware, `measurements.log` mode `4I`), so its own terms drop out. From .18's
+`measurements.log`, n=40 at poll 5: offset median **3586 ns** (p10 2997, p90 4097), peer delay median
+**19.79 µs** (min 18.37). The `sourcestats` regression over the same window reads **Offset −3009 ns** (SD 137 ns; that column is
+local-fast, so it means .17 ahead by 3009 ns) —
+577 ns lower because chrony's filter keeps the low-delay samples, and 3009 sits essentially on the raw p10.
+
+**What is measured.** `(a_rx - a_tx)/2 = theta_measured - theta_true = 2.7–3.3 µs`, so
+**`a_rx - a_tx` = 5.5–6.6 µs**. This needs no network model: `theta_true` is 0–0.3 µs from the Pico.
+
+**What is not.** The individual terms need `path_RT`, and that is the weak input. Serialization of a ~114-byte
+frame at 1 Gbit is 0.91 µs each way and the PHY pairs are ~0.5–0.7 µs, but the switch is an Arista 7050TX whose
+datasheet quotes **3 µs**, not the ~1 µs first assumed. A defensible `path_RT` is **6–12 µs**, which puts
+`a_rx + a_tx` at 8–14 µs and `a_rx` at roughly 7–10 µs with `a_tx` a couple of microseconds. Those are ranges,
+not a split; the earlier working figures of 10 µs and 4.5 µs assumed the optimistic end of the path.
+
+Two independent signs that the variability is on the receive side: chrony's own **jitter asymmetry −0.48**,
+which by its definition means the delay of packets sent *to* the source is the variable one — the client's
+request path, which is where the server's receive stamp sits; and the
+median-versus-min-delay offset drop of 0.58 µs against 0.71 µs predicted if all of the extra 1.42 µs of delay
+were on receive. Single-sample peer delays from other clients (andrew-pc, pve, mail) are not a constraint —
+their own software stamps add tens of microseconds and one of the three inverts.
+
+Closing this properly needs `path_RT` measured rather than modelled: the switch's own latency monitor, or a
+hardware-stamped echo whose software residence the Pico times.
+
+## Two levers that did not move it (09-09)
+
+Each: change on .17, wait ~11 minutes for .18's window to refill, re-read. Baseline is the n=40 above.
+
+| | offset median | peer delay median |
+|---|---|---|
+| baseline | 3586 ns | 19.79 µs |
+| eth0 IRQ threads FIFO 50 → 85 | 3499 ns | 19.41 µs |
+| RX coalescing rx-usecs 57 → 0 | 3473 ns | 19.35 µs |
+
+The offset moves are 87 and 113 ns. Per-sample σ is ~430 ns, so the standard error of an n=20 median is ~120 ns
+and both moves are about one of those — not detections. Both were reverted. Two honest caveats: the "after" windows are 20 samples where the
+baseline is 40, and the coalescing knob was probably a no-op to begin with, because `rx-frames` was already 1,
+so the ring interrupts on the first packet and the microsecond timer is the other arm of an OR. What these rule
+out is idle-box interrupt priority and that particular timer; they do not isolate the NAPI path. A sharper
+experiment would drop the source to poll 2 so a window fills in a minute, and would first prove the meter by
+inserting a known delay in the driver's receive path. `data/pi4/results/asymmetry-20260909/`.
+
+## RP1 PCIe round trip, and what it says about the 1270 ns (09-09)
+
+`tools/schedpulse/rp1lat.c` on .18, 20 000 iterations each, CPU1 SCHED_FIFO 80, `clock_gettime` pair overhead
+(33 ns) subtracted:
+
+| | median | min | p99 |
+|---|---|---|---|
+| read of the SYS_RIO IN register | **949 ns** | 929 | 986 |
+| posted write to the SET alias | 4 ns | — | 5 |
+| write, then read the same register | **1134 ns** | 1115 | 1153 |
+
+The read round trip agrees with the kernel's own measurement of the PPS status read (mean 984, min 962) — a
+different register and a different issuer, so agreement to 35 ns is a cross-check, not a repeat. The write costs
+the CPU nothing measurable, which is what "posted" means (the 4 ns is inside the timing overhead and is not a
+constant worth quoting).
+
+**A read-back cannot time the write's flight.** PCIe producer-consumer ordering means a read of the same
+function cannot pass the posted write, so it always returns the new value — verified here: the tool counts them, and 20 000 of 20 000
+iterations read back the bit just set. The 185 ns that the write adds to a following read is the ordering
+penalty, not the flight. The idea of bounding the flight this way is dead, for the same reason the Pi 4's
+loopback cannot split its own posted write: one clock watching a round trip never sees the two directions apart.
+
+**What it does give.** The Pico measures pin edge to pin edge as 1270 ns, which is the pin→entry delay plus the
+posted write. The two link traversals account for most of the 949 ns read round trip, leaving a non-link
+remainder of roughly 300–380 ns for GIC delivery, exception entry and the handler prologue — a sensible size,
+and consistent with the Pi 4's 784 ns pin→entry on a slower core with no PCIe in the path at all. **If the two
+link directions are symmetric**, entry ≈ 820 ns and flight ≈ 450 ns, ±200 ns. That is a conditional split, and
+the condition is not testable from the CPU alone; it does not move `DELIVERY_NS=800`, which sits inside it.
+
+The in-kernel warmer's loop reads **2045 ns** for the same physical sum, which would require 1155 ns of
+interrupt entry — not credible. About 775 ns of it is software in the timer callback before the register write.
+Quote the Pico's 1270 ns; the warmer loop is instrumentation, not a delivery measurement.
+

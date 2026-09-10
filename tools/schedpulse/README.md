@@ -27,6 +27,20 @@ schedpulse rp1     22 300 0.5
 analyze_sched.py pico.txt sched_pi4.log sched_pi5.log 10 120 500
 ```
 
+## `rp1lat` — the CPU↔RP1 PCIe round trip on the Pi 5
+
+`rp1lat.c` (same mmap of `/dev/gpiomem0`) times three things over 20 000 iterations, with the `clock_gettime`
+pair overhead measured and subtracted: a read of the SYS_RIO IN register, a posted write to the SET alias, and
+a write immediately followed by a read of the same register. It also verifies that the read-back returns the bit
+just written. 2026-09-09 on `.18`: read **949 ns** (min 929, p1 948, p99 986), posted write 4 ns of CPU time, write+read
+**1134 ns**, and the read-back returned the newly written bit on 20 000 of 20 000 iterations.
+
+The point is a negative one: PCIe producer-consumer ordering keeps the read behind the posted write, so it always
+returns the new value and can never time the write's flight — the 185 ns the write adds to a following read is the
+ordering penalty. What the read round trip *is* good for is bounding the non-link part of the counter's 1270 ns
+(pin edge → entry stamp → pin edge): about 300–380 ns, the right size for GIC delivery plus exception entry, and
+consistent with the Pi 4's 784 ns pin→entry on a slower core with no PCIe in the path.
+
 The analyser scans the Pico stream with a regex rather than by line, so a mangled line elsewhere in the
 capture cannot hide samples (that is how the 2026-09-09 run was recovered after a firmware buffer overrun
 ate the newline on every heartbeat).
